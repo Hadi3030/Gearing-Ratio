@@ -1,0 +1,1 @@
+# Gearing-Ratio
