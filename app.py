@@ -43,7 +43,7 @@ except Exception as e:
 # PREVIEW DATA
 # ===============================
 st.subheader("👀 Preview Data")
-st.dataframe(df.head(), use_container_width=True)
+st.dataframe(df, use_container_width=True)
 
 # ===============================
 # BASIC CLEANING (AMAN)
