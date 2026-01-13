@@ -6,11 +6,11 @@ import plotly.express as px
 # CONFIG
 # ===============================
 st.set_page_config(
-    page_title="Dashboard Ekuitas KUR & PEN",
+    page_title="Dashboard KUR & PEN",
     layout="wide"
 )
 
-st.title("📊 Summary Outstanding Penjaminan KUR dan PEN")
+st.title("📊 Summary Outstanding Penjaminan KUR & PEN")
 
 # ===============================
 # UPLOAD FILE
@@ -33,144 +33,159 @@ def load_data(file):
         return pd.read_csv(file)
     return pd.read_excel(file)
 
-df = load_data(uploaded_file)
+try:
+    df = load_data(uploaded_file)
+except Exception as e:
+    st.error(f"❌ Gagal membaca file: {e}")
+    st.stop()
 
 # ===============================
-# PREVIEW
+# PREVIEW DATA
 # ===============================
 st.subheader("👀 Preview Data")
 st.dataframe(df.head(), use_container_width=True)
 
 # ===============================
-# VALIDASI KOLOM
+# BASIC CLEANING (AMAN)
 # ===============================
-required_cols = ["Periode", "Jenis", "Generasi", "Value", "Jumlah Debitur"]
-missing = [c for c in required_cols if c not in df.columns]
+if "Periode" in df.columns:
+    df["Periode"] = pd.to_datetime(df["Periode"], errors="coerce")
 
-if missing:
-    st.error(f"❌ Kolom tidak ditemukan: {missing}")
-    st.stop()
+if "Value" in df.columns:
+    df["Value"] = (
+        df["Value"]
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.replace(".", "", regex=False)
+    )
+    df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
 
-# ===============================
-# CLEANING
-# ===============================
-df["Periode"] = pd.to_datetime(df["Periode"], errors="coerce")
-
-df["Value"] = (
-    df["Value"]
-    .astype(str)
-    .str.replace(",", "", regex=False)
-    .str.replace(".", "", regex=False)
-)
-df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
-df["Jumlah Debitur"] = pd.to_numeric(df["Jumlah Debitur"], errors="coerce")
-
-df = df.dropna()
+if "Jumlah Debitur" in df.columns:
+    df["Jumlah Debitur"] = pd.to_numeric(df["Jumlah Debitur"], errors="coerce")
 
 # ===============================
-# SIDEBAR FILTER
+# SIDEBAR FILTER (DINAMIS)
 # ===============================
 st.sidebar.header("🔎 Filter")
 
-jenis_filter = st.sidebar.multiselect(
-    "Jenis",
-    df["Jenis"].unique(),
-    default=df["Jenis"].unique()
-)
+if "Jenis" in df.columns:
+    jenis_filter = st.sidebar.multiselect(
+        "Jenis",
+        df["Jenis"].dropna().unique(),
+        default=df["Jenis"].dropna().unique()
+    )
+else:
+    jenis_filter = []
 
-gen_filter = st.sidebar.multiselect(
-    "Generasi",
-    df["Generasi"].unique(),
-    default=df["Generasi"].unique()
-)
+if "Generasi" in df.columns:
+    gen_filter = st.sidebar.multiselect(
+        "Generasi",
+        df["Generasi"].dropna().unique(),
+        default=df["Generasi"].dropna().unique()
+    )
+else:
+    gen_filter = []
 
-periode_range = st.sidebar.date_input(
-    "Periode",
-    [df["Periode"].min().date(), df["Periode"].max().date()]
-)
+# FILTER DATA (AMAN)
+df_f = df.copy()
 
-# ===============================
-# FILTER DATA
-# ===============================
-df_f = df[
-    (df["Jenis"].isin(jenis_filter)) &
-    (df["Generasi"].isin(gen_filter)) &
-    (df["Periode"].dt.date >= periode_range[0]) &
-    (df["Periode"].dt.date <= periode_range[1])
-]
+if "Jenis" in df.columns and jenis_filter:
+    df_f = df_f[df_f["Jenis"].isin(jenis_filter)]
 
-if df_f.empty:
-    st.warning("⚠️ Data kosong setelah filter")
-    st.stop()
+if "Generasi" in df.columns and gen_filter:
+    df_f = df_f[df_f["Generasi"].isin(gen_filter)]
 
 # ===============================
-# KPI
+# KPI (OPTIONAL)
 # ===============================
+st.subheader("📌 KPI")
+
 col1, col2, col3 = st.columns(3)
 
-col1.metric("Total Outstanding", f"{df_f['Value'].sum():,.0f}")
-col2.metric("Jumlah Debitur", f"{df_f['Jumlah Debitur'].sum():,.0f}")
-col3.metric("Jumlah Data", len(df_f))
+if "Value" in df_f.columns:
+    col1.metric("Total Outstanding", f"{df_f['Value'].sum():,.0f}")
+else:
+    col1.warning("Kolom `Value` tidak ditemukan")
+
+if "Jumlah Debitur" in df_f.columns:
+    col2.metric("Jumlah Debitur", f"{df_f['Jumlah Debitur'].sum():,.0f}")
+else:
+    col2.warning("Kolom `Jumlah Debitur` tidak ditemukan")
+
+col3.metric("Jumlah Baris Data", len(df_f))
 
 # ===============================
 # BAR CHART – PORTFOLIO SUMMARY
 # ===============================
 st.subheader("📊 Portfolio Summary")
 
-summary_df = (
-    df_f.groupby("Jenis")[["Value"]]
-    .sum()
-    .reset_index()
-)
+needed_cols = {"Jenis", "Value"}
 
-fig_bar = px.bar(
-    summary_df,
-    x="Jenis",
-    y="Value",
-    text_auto=".2s",
-    title="Portfolio Summary"
-)
+if needed_cols.issubset(df_f.columns):
+    summary_df = df_f.groupby("Jenis", as_index=False)["Value"].sum()
 
-st.plotly_chart(fig_bar, use_container_width=True)
+    fig = px.bar(
+        summary_df,
+        x="Jenis",
+        y="Value",
+        text_auto=".2s",
+        title="Portfolio Summary"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning(
+        f"❌ Grafik tidak dapat ditampilkan. Kolom kurang: "
+        f"{needed_cols - set(df_f.columns)}"
+    )
 
 # ===============================
 # BAR CHART – JUMLAH DEBITUR
 # ===============================
 st.subheader("👥 Jumlah Debitur")
 
-debitur_df = (
-    df_f.groupby("Jenis")[["Jumlah Debitur"]]
-    .sum()
-    .reset_index()
-)
+needed_cols = {"Jenis", "Jumlah Debitur"}
 
-fig_deb = px.bar(
-    debitur_df,
-    x="Jenis",
-    y="Jumlah Debitur",
-    text_auto=True,
-    title="Jumlah Debitur"
-)
+if needed_cols.issubset(df_f.columns):
+    deb_df = df_f.groupby("Jenis", as_index=False)["Jumlah Debitur"].sum()
 
-st.plotly_chart(fig_deb, use_container_width=True)
+    fig = px.bar(
+        deb_df,
+        x="Jenis",
+        y="Jumlah Debitur",
+        text_auto=True,
+        title="Jumlah Debitur"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning(
+        f"❌ Grafik tidak dapat ditampilkan. Kolom kurang: "
+        f"{needed_cols - set(df_f.columns)}"
+    )
 
 # ===============================
 # LINE CHART – TREN
 # ===============================
 st.subheader("📈 Tren Outstanding")
 
-fig_line = px.line(
-    df_f,
-    x="Periode",
-    y="Value",
-    color="Jenis",
-    markers=True
-)
+needed_cols = {"Periode", "Value", "Jenis"}
 
-st.plotly_chart(fig_line, use_container_width=True)
+if needed_cols.issubset(df_f.columns):
+    fig = px.line(
+        df_f,
+        x="Periode",
+        y="Value",
+        color="Jenis",
+        markers=True
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning(
+        f"❌ Grafik tren tidak dapat ditampilkan. Kolom kurang: "
+        f"{needed_cols - set(df_f.columns)}"
+    )
 
 # ===============================
-# TABLE
+# TABLE (SELALU TAMPIL)
 # ===============================
 st.subheader("📋 Data Detail")
 st.dataframe(df_f, use_container_width=True)
