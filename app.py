@@ -1,15 +1,16 @@
 import streamlit as st
-st.write("App started successfully")
 import pandas as pd
 import plotly.express as px
 
 # ===============================
-# CONFIG
+# CONFIG (WAJIB PALING ATAS)
 # ===============================
 st.set_page_config(
     page_title="Dashboard Ekuitas",
     layout="wide"
 )
+
+st.write("App started successfully ✅")
 
 st.title("📊 Dashboard Ekuitas")
 
@@ -26,13 +27,17 @@ if uploaded_file is None:
     st.stop()
 
 # ===============================
-# READ DATA
+# READ DATA (SAFE)
 # ===============================
-try:
-    if uploaded_file.name.endswith(".csv"):
-        df = pd.read_csv(uploaded_file)
+@st.cache_data
+def load_data(file):
+    if file.name.endswith(".csv"):
+        return pd.read_csv(file)
     else:
-        df = pd.read_excel(uploaded_file)
+        return pd.read_excel(file)
+
+try:
+    df = load_data(uploaded_file)
 except Exception as e:
     st.error(f"Gagal membaca file: {e}")
     st.stop()
@@ -41,10 +46,10 @@ except Exception as e:
 # VALIDASI KOLOM WAJIB
 # ===============================
 required_columns = ["Periode", "Jenis", "Value"]
-
 missing_cols = [c for c in required_columns if c not in df.columns]
+
 if missing_cols:
-    st.error(f"Kolom berikut tidak ditemukan: {missing_cols}")
+    st.error(f"❌ Kolom berikut tidak ditemukan: {missing_cols}")
     st.stop()
 
 # ===============================
@@ -89,22 +94,17 @@ if filtered_df.empty:
 # ===============================
 # KPI
 # ===============================
-latest_value = filtered_df.iloc[-1]["Value"]
+latest = filtered_df.iloc[-1]
+previous = filtered_df.iloc[-2] if len(filtered_df) > 1 else latest
 
-previous_value = (
-    filtered_df.iloc[-2]["Value"]
-    if len(filtered_df) > 1
-    else latest_value
-)
-
-delta = latest_value - previous_value
-delta_pct = (delta / previous_value * 100) if previous_value != 0 else 0
+delta = latest["Value"] - previous["Value"]
+delta_pct = (delta / previous["Value"] * 100) if previous["Value"] != 0 else 0
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("📌 Nilai Terakhir", f"{latest_value:,.2f}")
+col1.metric("📌 Nilai Terakhir", f"{latest['Value']:,.2f}")
 col2.metric("📈 Perubahan", f"{delta:,.2f}", f"{delta_pct:.2f}%")
-col3.metric("📅 Periode Terakhir", filtered_df.iloc[-1]["Periode"].strftime("%Y-%m-%d"))
+col3.metric("📅 Periode Terakhir", latest["Periode"].strftime("%Y-%m-%d"))
 
 # ===============================
 # LINE CHART
@@ -142,8 +142,8 @@ st.dataframe(
 csv = filtered_df.to_csv(index=False).encode("utf-8")
 
 st.download_button(
-    label="⬇️ Download Data Filtered",
-    data=csv,
-    file_name="data_filtered.csv",
-    mime="text/csv"
+    "⬇️ Download Data Filtered",
+    csv,
+    "data_filtered.csv",
+    "text/csv"
 )
