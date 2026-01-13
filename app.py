@@ -10,12 +10,10 @@ st.set_page_config(
     layout="wide"
 )
 
-st.write("App started successfully ✅")
-
 st.title("📊 Dashboard Ekuitas")
 
 # ===============================
-# UPLOAD DATA
+# UPLOAD FILE
 # ===============================
 uploaded_file = st.file_uploader(
     "Upload file CSV atau Excel",
@@ -27,7 +25,7 @@ if uploaded_file is None:
     st.stop()
 
 # ===============================
-# READ DATA (SAFE)
+# READ DATA
 # ===============================
 @st.cache_data
 def load_data(file):
@@ -43,7 +41,13 @@ except Exception as e:
     st.stop()
 
 # ===============================
-# VALIDASI KOLOM WAJIB
+# PREVIEW DATA (FITUR BARU)
+# ===============================
+st.subheader("👀 Preview Data (5 baris pertama)")
+st.dataframe(df.head(), use_container_width=True)
+
+# ===============================
+# VALIDASI KOLOM
 # ===============================
 required_columns = ["Periode", "Jenis", "Value"]
 missing_cols = [c for c in required_columns if c not in df.columns]
@@ -56,6 +60,17 @@ if missing_cols:
 # DATA CLEANING
 # ===============================
 df["Periode"] = pd.to_datetime(df["Periode"], errors="coerce")
+
+# PAKSA VALUE JADI ANGKA (FIX ERROR UTAMA)
+df["Value"] = (
+    df["Value"]
+    .astype(str)
+    .str.replace(",", "", regex=False)
+    .str.replace(".", "", regex=False)
+)
+
+df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
+
 df = df.dropna(subset=["Periode", "Value"])
 df = df.sort_values("Periode")
 
@@ -130,7 +145,6 @@ st.plotly_chart(fig, use_container_width=True)
 # TABLE
 # ===============================
 st.subheader("📋 Data Detail")
-
 st.dataframe(
     filtered_df.style.format({"Value": "{:,.2f}"}),
     use_container_width=True
