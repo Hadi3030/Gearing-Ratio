@@ -3,161 +3,184 @@ import pandas as pd
 import plotly.express as px
 
 # ===============================
-# CONFIG (WAJIB PALING ATAS)
+# CONFIG
 # ===============================
 st.set_page_config(
-    page_title="Dashboard Ekuitas",
+    page_title="Dashboard Ekuitas KUR & PEN",
     layout="wide"
 )
 
-st.title("📊 Dashboard Ekuitas")
+st.title("📊 Summary Outstanding Penjaminan KUR dan PEN")
 
 # ===============================
 # UPLOAD FILE
 # ===============================
 uploaded_file = st.file_uploader(
-    "Upload file CSV atau Excel",
+    "Upload file Excel / CSV",
     type=["csv", "xlsx"]
 )
 
 if uploaded_file is None:
-    st.info("📥 Silakan upload file data terlebih dahulu.")
+    st.info("📥 Silakan upload file terlebih dahulu")
     st.stop()
 
 # ===============================
-# READ DATA
+# LOAD DATA
 # ===============================
 @st.cache_data
 def load_data(file):
     if file.name.endswith(".csv"):
         return pd.read_csv(file)
-    else:
-        return pd.read_excel(file)
+    return pd.read_excel(file)
 
-try:
-    df = load_data(uploaded_file)
-except Exception as e:
-    st.error(f"Gagal membaca file: {e}")
-    st.stop()
+df = load_data(uploaded_file)
 
 # ===============================
-# PREVIEW DATA (FITUR BARU)
+# PREVIEW
 # ===============================
-st.subheader("👀 Preview Data (5 baris pertama)")
+st.subheader("👀 Preview Data")
 st.dataframe(df.head(), use_container_width=True)
 
 # ===============================
 # VALIDASI KOLOM
 # ===============================
-required_columns = ["Periode", "Jenis", "Value"]
-missing_cols = [c for c in required_columns if c not in df.columns]
+required_cols = ["Periode", "Jenis", "Generasi", "Value", "Jumlah Debitur"]
+missing = [c for c in required_cols if c not in df.columns]
 
-if missing_cols:
-    st.error(f"❌ Kolom berikut tidak ditemukan: {missing_cols}")
+if missing:
+    st.error(f"❌ Kolom tidak ditemukan: {missing}")
     st.stop()
 
 # ===============================
-# DATA CLEANING
+# CLEANING
 # ===============================
 df["Periode"] = pd.to_datetime(df["Periode"], errors="coerce")
 
-# PAKSA VALUE JADI ANGKA (FIX ERROR UTAMA)
 df["Value"] = (
     df["Value"]
     .astype(str)
     .str.replace(",", "", regex=False)
     .str.replace(".", "", regex=False)
 )
-
 df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
+df["Jumlah Debitur"] = pd.to_numeric(df["Jumlah Debitur"], errors="coerce")
 
-df = df.dropna(subset=["Periode", "Value"])
-df = df.sort_values("Periode")
+df = df.dropna()
 
 # ===============================
 # SIDEBAR FILTER
 # ===============================
 st.sidebar.header("🔎 Filter")
 
-jenis_list = st.sidebar.multiselect(
-    "Pilih Jenis",
-    options=sorted(df["Jenis"].unique()),
-    default=sorted(df["Jenis"].unique())
+jenis_filter = st.sidebar.multiselect(
+    "Jenis",
+    df["Jenis"].unique(),
+    default=df["Jenis"].unique()
 )
 
-periode_min = df["Periode"].min().date()
-periode_max = df["Periode"].max().date()
+gen_filter = st.sidebar.multiselect(
+    "Generasi",
+    df["Generasi"].unique(),
+    default=df["Generasi"].unique()
+)
 
 periode_range = st.sidebar.date_input(
-    "Pilih Rentang Periode",
-    value=[periode_min, periode_max]
+    "Periode",
+    [df["Periode"].min().date(), df["Periode"].max().date()]
 )
 
 # ===============================
 # FILTER DATA
 # ===============================
-filtered_df = df[
-    (df["Jenis"].isin(jenis_list)) &
+df_f = df[
+    (df["Jenis"].isin(jenis_filter)) &
+    (df["Generasi"].isin(gen_filter)) &
     (df["Periode"].dt.date >= periode_range[0]) &
     (df["Periode"].dt.date <= periode_range[1])
 ]
 
-if filtered_df.empty:
-    st.warning("⚠️ Tidak ada data pada filter yang dipilih.")
+if df_f.empty:
+    st.warning("⚠️ Data kosong setelah filter")
     st.stop()
 
 # ===============================
 # KPI
 # ===============================
-latest = filtered_df.iloc[-1]
-previous = filtered_df.iloc[-2] if len(filtered_df) > 1 else latest
-
-delta = latest["Value"] - previous["Value"]
-delta_pct = (delta / previous["Value"] * 100) if previous["Value"] != 0 else 0
-
 col1, col2, col3 = st.columns(3)
 
-col1.metric("📌 Nilai Terakhir", f"{latest['Value']:,.2f}")
-col2.metric("📈 Perubahan", f"{delta:,.2f}", f"{delta_pct:.2f}%")
-col3.metric("📅 Periode Terakhir", latest["Periode"].strftime("%Y-%m-%d"))
+col1.metric("Total Outstanding", f"{df_f['Value'].sum():,.0f}")
+col2.metric("Jumlah Debitur", f"{df_f['Jumlah Debitur'].sum():,.0f}")
+col3.metric("Jumlah Data", len(df_f))
 
 # ===============================
-# LINE CHART
+# BAR CHART – PORTFOLIO SUMMARY
 # ===============================
-fig = px.line(
-    filtered_df,
+st.subheader("📊 Portfolio Summary")
+
+summary_df = (
+    df_f.groupby("Jenis")[["Value"]]
+    .sum()
+    .reset_index()
+)
+
+fig_bar = px.bar(
+    summary_df,
+    x="Jenis",
+    y="Value",
+    text_auto=".2s",
+    title="Portfolio Summary"
+)
+
+st.plotly_chart(fig_bar, use_container_width=True)
+
+# ===============================
+# BAR CHART – JUMLAH DEBITUR
+# ===============================
+st.subheader("👥 Jumlah Debitur")
+
+debitur_df = (
+    df_f.groupby("Jenis")[["Jumlah Debitur"]]
+    .sum()
+    .reset_index()
+)
+
+fig_deb = px.bar(
+    debitur_df,
+    x="Jenis",
+    y="Jumlah Debitur",
+    text_auto=True,
+    title="Jumlah Debitur"
+)
+
+st.plotly_chart(fig_deb, use_container_width=True)
+
+# ===============================
+# LINE CHART – TREN
+# ===============================
+st.subheader("📈 Tren Outstanding")
+
+fig_line = px.line(
+    df_f,
     x="Periode",
     y="Value",
     color="Jenis",
-    markers=True,
-    title="Tren Nilai Ekuitas"
+    markers=True
 )
 
-fig.update_layout(
-    xaxis_title="Periode",
-    yaxis_title="Value",
-    template="plotly_white"
-)
-
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig_line, use_container_width=True)
 
 # ===============================
 # TABLE
 # ===============================
 st.subheader("📋 Data Detail")
-st.dataframe(
-    filtered_df.style.format({"Value": "{:,.2f}"}),
-    use_container_width=True
-)
+st.dataframe(df_f, use_container_width=True)
 
 # ===============================
 # DOWNLOAD
 # ===============================
-csv = filtered_df.to_csv(index=False).encode("utf-8")
-
 st.download_button(
     "⬇️ Download Data Filtered",
-    csv,
+    df_f.to_csv(index=False).encode("utf-8"),
     "data_filtered.csv",
     "text/csv"
 )
