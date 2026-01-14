@@ -105,16 +105,22 @@ df["Periode_Label"] = (
 )
 
 # ===============================
-# CLEAN VALUE (FORMAT INDONESIA)
+# CLEAN VALUE (AMAN UNTUK EXCEL & CSV)
 # ===============================
-df["Value"] = (
-    df["Value"]
-    .astype(str)
-    .str.replace(".", "", regex=False)   # hapus ribuan
-    .str.replace(",", ".", regex=False)  # koma -> desimal
-)
 
-df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
+if pd.api.types.is_numeric_dtype(df["Value"]):
+    # Excel biasanya sudah numeric → langsung pakai
+    df["Value"] = df["Value"].astype(float)
+else:
+    # CSV / text → format Indonesia
+    df["Value"] = (
+        df["Value"]
+        .astype(str)
+        .str.replace(".", "", regex=False)   # hapus ribuan
+        .str.replace(",", ".", regex=False)  # koma jadi desimal
+    )
+    df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
+
 
 # ===============================
 # SIDEBAR FILTER
