@@ -134,7 +134,7 @@ if {"Periode", "Value", "Jenis"}.issubset(df_f.columns):
         ordered=True
     )
     agg_df = agg_df.sort_values("Nama_Bulan")
-    agg_df["Value_T"] = agg_df["Value"] / 1_000_000_000_000
+    agg_df["Value_T"] = agg_df["Value"] / 1_000_000_000_000_000
 
     fig = px.area(
         agg_df,
