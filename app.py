@@ -242,3 +242,79 @@ st.download_button(
     "os_penjaminan_kur.csv",
     "text/csv"
 )
+
+#=============================================================================================================================
+#========================================================================================================================================
+
+# ===============================
+# AGREGASI KHUSUS KUR (AUDITED PRIORITY)
+# ===============================
+st.subheader("📈 Ekuitas KUR")
+
+df_kur = df_f[df_f["Jenis"].isin(["Ekuitas KUR"])]
+
+# Urutkan: audited diutamakan
+df_kur_sorted = df_kur.sort_values(
+    ["SortKey", "Is_Audited"],
+    ascending=[True, False]
+)
+
+# Ambil audited jika ada, jika tidak ambil data biasa
+df_kur_agg = (
+    df_kur_sorted
+    .groupby(["SortKey", "Periode_Label"], as_index=False)
+    .agg(Ekuitas_KUR_Rp=("Value", "last"))
+    .sort_values("SortKey")
+)
+
+df_kur_agg["Ekuitas_KUR_T"] = df_kur_agg["Ekuitas_KUR_Rp"] / 1_000_000_000_000
+
+# ===============================
+# GRAFIK
+# ===============================
+fig = px.area(
+    df_kur_agg,
+    x="Periode_Label",
+    y="Ekuitas_KUR_T",
+    markers=True
+)
+
+fig.update_layout(
+    xaxis_title="Periode",
+    yaxis_title="Ekuitas KUR (Triliun)",
+    yaxis=dict(ticksuffix=" T"),
+    hovermode="x unified"
+)
+
+fig.update_xaxes(
+    type="category",
+    categoryorder="array",
+    categoryarray=df_kur_agg["Periode_Label"].tolist(),
+    tickangle=-45
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# ===============================
+# TABEL HASIL OLAHAN
+# ===============================
+st.subheader("📋 Tabel Hasil Pengolahan Ekuitas KUR")
+
+st.dataframe(
+    df_kur_agg.style.format({
+        "Ekuitas_KUR_Rp": "Rp {:,.2f}",
+        "Ekuitas_KUR_T": "{:.2f}"
+    }),
+    use_container_width=True
+)
+
+# ===============================
+# DOWNLOAD
+# ===============================
+st.download_button(
+    "⬇️ Download Hasil OS KUR",
+    df_kur_agg.to_csv(index=False).encode("utf-8"),
+    "Ekuitas_kur.csv",
+    "text/csv"
+)
+
