@@ -312,9 +312,83 @@ st.dataframe(
 # DOWNLOAD
 # ===============================
 st.download_button(
-    "⬇️ Download Hasil OS KUR",
+    "⬇️ Download Hasil Ekuitas KUR",
     df_kur_agg.to_csv(index=False).encode("utf-8"),
     "Ekuitas_kur.csv",
     "text/csv"
 )
 
+#============================================================================================================================================
+#==============================================================================================================================================
+
+# ===============================
+# AGREGASI KHUSUS KUR (AUDITED PRIORITY)
+# ===============================
+st.subheader("📈 OS Penjaminan KUR Dan PEN")
+
+df_kur = df_f[df_f["Jenis"].isin(["KUR Gen 1", "KUR Gen 2","PEN Gen 1", "PEN Gen 2"])]
+
+# Urutkan: audited diutamakan
+df_kur_sorted = df_kur.sort_values(
+    ["SortKey", "Is_Audited"],
+    ascending=[True, False]
+)
+
+# Ambil audited jika ada, jika tidak ambil data biasa
+df_kur_agg = (
+    df_kur_sorted
+    .groupby(["SortKey", "Periode_Label"], as_index=False)
+    .agg(OS_KUR_Rp=("Value", "last"))
+    .sort_values("SortKey")
+)
+
+df_kur_agg["OS_KUR&PEN_T"] = df_kur_agg["OS_KUR&PEN_Rp"] / 1_000_000_000_000
+
+# ===============================
+# GRAFIK
+# ===============================
+fig = px.area(
+    df_kur_agg,
+    x="Periode_Label",
+    y="OS_KUR&PEN_T",
+    markers=True
+)
+
+fig.update_layout(
+    xaxis_title="Periode",
+    yaxis_title="Outstanding KUR&PEN (Triliun)",
+    yaxis=dict(ticksuffix=" T"),
+    hovermode="x unified"
+)
+
+fig.update_xaxes(
+    type="category",
+    categoryorder="array",
+    categoryarray=df_kur_agg["Periode_Label"].tolist(),
+    tickangle=-45
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# ===============================
+# TABEL HASIL OLAHAN
+# ===============================
+st.subheader("📋 Tabel Hasil Pengolahan OS Penjaminan KUR & PEN")
+
+st.dataframe(
+    df_kur_agg.style.format({
+        "OS_KUR&PEN_Rp": "Rp {:,.2f}",
+        "OS_KUR&PEN_T": "{:.2f}"
+    }),
+    use_container_width=True
+)
+
+# ===============================
+# DOWNLOAD
+# ===============================
+st.download_button(
+    "⬇️ Download Hasil OS KUR&PEN",
+    df_kur_agg.to_csv(index=False).encode("utf-8"),
+    "os_penjaminan_kur_pen.csv",
+    "text/csv"
+)
