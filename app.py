@@ -1,127 +1,195 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-
-# TAMBAHKAN INI
-import matplotlib.pyplot as plt
-import calendar
 import re
 
+# ===============================
+# CONFIG
+# ===============================
+st.set_page_config(
+    page_title="Dashboard KUR & PEN",
+    layout="wide"
+)
+
+st.title("📊 Summary Outstanding Penjaminan KUR & PEN")
+
+# ===============================
+# UPLOAD FILE
+# ===============================
+uploaded_file = st.file_uploader(
+    "📥 Upload file Excel / CSV",
+    type=["csv", "xlsx"]
+)
+
+if uploaded_file is None:
+    st.info("Silakan upload file terlebih dahulu")
+    st.stop()
 
 # ===============================
 # LOAD DATA
 # ===============================
-# contoh:
-# df = pd.read_excel("data.xlsx")
-# pastikan kolom:
-# - "Periode"
-# - "Nilai" (atau ganti sesuai nama kolommu)
+@st.cache_data
+def load_data(file):
+    if file.name.endswith(".csv"):
+        return pd.read_csv(file)
+    return pd.read_excel(file)
 
-nilai_kolom = "Nilai"   # GANTI jika nama kolom berbeda
+try:
+    df = load_data(uploaded_file)
+except Exception as e:
+    st.error(f"❌ Gagal membaca file: {e}")
+    st.stop()
+
+# ===============================
+# VALIDASI KOLOM
+# ===============================
+required_cols = ["Periode", "Value"]
+for col in required_cols:
+    if col not in df.columns:
+        st.error(f"❌ Kolom '{col}' tidak ditemukan")
+        st.stop()
 
 # ===============================
 # SIMPAN PERIODE ASLI
 # ===============================
-df["Periode_Raw"] = df["Periode"]
-
-# coba parse datetime (tidak merusak string)
-df["Periode_DT"] = pd.to_datetime(df["Periode"], errors="coerce")
-
-# label asli (untuk fallback)
-df["Periode_Label"] = df["Periode_Raw"].astype(str)
+df["Periode_Raw"] = df["Periode"].astype(str)
 
 # ===============================
-# MAP BULAN (STRING)
+# PARSING PERIODE STRING (Dec 23 Audited, Jan 2024, dll)
 # ===============================
 bulan_map = {
-    "jan": 1, "january": 1,
-    "feb": 2, "february": 2,
-    "mar": 3, "march": 3,
-    "apr": 4, "april": 4,
-    "may": 5,
-    "jun": 6, "june": 6,
-    "jul": 7, "july": 7,
-    "aug": 8, "august": 8,
-    "sep": 9, "september": 9,
-    "oct": 10, "okt": 10, "october": 10,
-    "nov": 11, "november": 11,
-    "dec": 12, "december": 12,
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4,
+    "may": 5, "mei": 5, "jun": 6, "jul": 7,
+    "aug": 8, "agu": 8, "sep": 9,
+    "oct": 10, "okt": 10,
+    "nov": 11, "dec": 12
 }
 
-# ===============================
-# FUNGSI EKSTRAK BULAN & TAHUN
-# ===============================
-def extract_month_year(raw, dt):
-    # kalau datetime valid
-    if pd.notna(dt):
-        return dt.month, dt.year
+def parse_periode(val):
+    # coba datetime normal dulu
+    try:
+        dt = pd.to_datetime(val)
+        return dt.year, dt.month
+    except:
+        pass
 
-    if pd.isna(raw):
-        return None, None
+    # cari bulan + tahun di string
+    text = str(val).lower()
+    for b, m in bulan_map.items():
+        if b in text:
+            year_match = re.search(r"(20\d{2}|\d{2})", text)
+            if year_match:
+                y = int(year_match.group())
+                if y < 100:
+                    y += 2000
+                return y, m
+    return None, None
 
-    text = str(raw).lower()
-
-    month = None
-    for k, v in bulan_map.items():
-        if k in text:
-            month = v
-            break
-
-    year = None
-    m = re.search(r"(20\d{2}|\d{2})", text)
-    if m:
-        y = int(m.group())
-        year = 2000 + y if y < 100 else y
-
-    return month, year
-
-# ===============================
-# TERAPKAN EKSTRAKSI
-# ===============================
-df[["Month", "Year"]] = df.apply(
-    lambda r: pd.Series(extract_month_year(r["Periode_Raw"], r["Periode_DT"])),
-    axis=1
+df[["Year", "Month"]] = df["Periode_Raw"].apply(
+    lambda x: pd.Series(parse_periode(x))
 )
 
-# ===============================
-# SORT KEY (UNTUK URUTAN)
-# ===============================
+df = df.dropna(subset=["Year", "Month"])
+
 df["SortKey"] = df["Year"] * 100 + df["Month"]
 
 # ===============================
-# LABEL SUMBU X (BULAN + TAHUN)
+# FORMAT LABEL X AXIS (BULAN TAHUN)
 # ===============================
-df["X_Label"] = df.apply(
-    lambda r: f"{calendar.month_abbr[int(r['Month'])]} {int(r['Year'])}"
-    if pd.notna(r["Month"]) and pd.notna(r["Year"])
-    else r["Periode_Label"],
-    axis=1
+bulan_id = {
+    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
+    5: "Mei", 6: "Jun", 7: "Jul", 8: "Agu",
+    9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
+}
+
+df["Periode_Label"] = (
+    df["Month"].map(bulan_id) + " " + df["Year"].astype(int).astype(str)
 )
 
 # ===============================
-# GROUP & SORT
+# CLEAN VALUE
 # ===============================
-df_group = (
-    df.groupby(["SortKey", "X_Label"], as_index=False)[nilai_kolom]
-      .sum()
-      .sort_values("SortKey")
+df["Value"] = (
+    df["Value"]
+    .astype(str)
+    .str.replace(",", "", regex=False)
+    .str.replace(".", "", regex=False)
+)
+df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
+
+# ===============================
+# SIDEBAR FILTER
+# ===============================
+st.sidebar.header("🔎 Filter Data")
+
+df_f = df.copy()
+
+if "Jenis" in df.columns:
+    jenis_filter = st.sidebar.multiselect(
+        "Jenis",
+        sorted(df["Jenis"].dropna().unique()),
+        default=sorted(df["Jenis"].dropna().unique())
+    )
+    df_f = df_f[df_f["Jenis"].isin(jenis_filter)]
+
+# ===============================
+# PREVIEW DATA
+# ===============================
+st.subheader("👀 Preview Data")
+st.dataframe(
+    df_f.style.format({"Value": "Rp {:,.0f}"}),
+    use_container_width=True
 )
 
 # ===============================
-# PLOT
+# AREA CHART – OUTSTANDING
 # ===============================
-plt.figure(figsize=(10, 5))
+st.subheader("📈 Outstanding per Bulan")
 
-plt.plot(
-    df_group["X_Label"],
-    df_group[nilai_kolom],
-    marker="o"
+agg_df = (
+    df_f
+    .groupby(["SortKey", "Periode_Label"], as_index=False)["Value"]
+    .sum()
+    .sort_values("SortKey")
 )
 
-plt.xlabel("Periode")
-plt.ylabel(nilai_kolom)
-plt.title("Total Nilai per Periode")
-plt.xticks(rotation=45)
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
+agg_df["Value_T"] = agg_df["Value"] / 1_000_000_000_000_000
+
+fig = px.area(
+    agg_df,
+    x="Periode_Label",
+    y="Value_T",
+    markers=True
+)
+
+fig.update_layout(
+    xaxis_title="Periode",
+    yaxis_title="Outstanding (T)",
+    yaxis=dict(ticksuffix=" T"),
+    hovermode="x unified"
+)
+
+fig.update_xaxes(
+    type="category",
+    categoryorder="array",
+    categoryarray=agg_df["Periode_Label"].tolist(),
+    tickangle=-45
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# ===============================
+# TABLE DETAIL
+# ===============================
+st.subheader("📋 Data Detail (Final)")
+st.dataframe(df_f, use_container_width=True)
+
+# ===============================
+# DOWNLOAD
+# ===============================
+st.download_button(
+    "⬇️ Download Data Filtered",
+    df_f.to_csv(index=False).encode("utf-8"),
+    "data_filtered.csv",
+    "text/csv"
+)
