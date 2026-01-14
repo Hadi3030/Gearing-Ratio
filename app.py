@@ -34,17 +34,12 @@ def load_data(file):
         return pd.read_csv(file)
     return pd.read_excel(file)
 
-try:
-    df = load_data(uploaded_file)
-except Exception as e:
-    st.error(f"❌ Gagal membaca file: {e}")
-    st.stop()
+df = load_data(uploaded_file)
 
 # ===============================
 # VALIDASI KOLOM
 # ===============================
-required_cols = ["Periode", "Value"]
-for col in required_cols:
+for col in ["Periode", "Value"]:
     if col not in df.columns:
         st.error(f"❌ Kolom '{col}' tidak ditemukan")
         st.stop()
@@ -55,7 +50,7 @@ for col in required_cols:
 df["Periode_Raw"] = df["Periode"].astype(str)
 
 # ===============================
-# PARSING PERIODE
+# PARSING PERIODE STRING
 # ===============================
 bulan_map = {
     "jan": 1, "feb": 2, "mar": 3, "apr": 4,
@@ -75,12 +70,10 @@ def parse_periode(val):
     text = str(val).lower()
     for b, m in bulan_map.items():
         if b in text:
-            year_match = re.search(r"(20\d{2}|\d{2})", text)
-            if year_match:
-                y = int(year_match.group())
-                if y < 100:
-                    y += 2000
-                return y, m
+            y = int(re.search(r"(20\d{2}|\d{2})", text).group())
+            if y < 100:
+                y += 2000
+            return y, m
     return None, None
 
 df[["Year", "Month"]] = df["Periode_Raw"].apply(
@@ -88,11 +81,10 @@ df[["Year", "Month"]] = df["Periode_Raw"].apply(
 )
 
 df = df.dropna(subset=["Year", "Month"])
-
 df["SortKey"] = df["Year"] * 100 + df["Month"]
 
 # ===============================
-# LABEL BULAN
+# LABEL PERIODE
 # ===============================
 bulan_id = {
     1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
@@ -105,39 +97,26 @@ df["Periode_Label"] = (
 )
 
 # ===============================
-# CLEAN VALUE (PER BARIS, PALING AMAN)
+# CLEAN VALUE (ANTI SALAH FORMAT)
 # ===============================
-
 def parse_value(val):
     if pd.isna(val):
         return None
-
-    # Jika sudah numeric (Excel asli)
     if isinstance(val, (int, float)):
         return float(val)
 
-    # Jika string (CSV / text Excel)
     text = str(val).strip()
-
-    # Format Indonesia: 1.234.567,89
     if "," in text and "." in text:
         text = text.replace(".", "").replace(",", ".")
-    # Format ribuan tanpa desimal
-    elif "," not in text and "." in text:
+    elif "." in text:
         text = text.replace(".", "")
 
-    try:
-        return float(text)
-    except:
-        return None
-
+    return float(text)
 
 df["Value"] = df["Value"].apply(parse_value)
 
-
-
 # ===============================
-# SIDEBAR FILTER
+# SIDEBAR FILTER (UMUM)
 # ===============================
 st.sidebar.header("🔎 Filter Data")
 
@@ -152,71 +131,88 @@ if "Jenis" in df_f.columns:
     df_f = df_f[df_f["Jenis"].isin(jenis_filter)]
 
 # ===============================
-# PREVIEW DATA (MENTAH, TIDAK DIJUMBLAHKAN)
+# PREVIEW DATA (MENTAH)
 # ===============================
-st.subheader("👀 Preview Data (Raw / As Is)")
+st.subheader("👀 Preview Data (Raw)")
 st.dataframe(
     df_f.style.format({"Value": "Rp {:,.2f}"}),
     use_container_width=True
 )
 
 # ===============================
-# AREA CHART – KUR GEN 1 + GEN 2 SAJA
+# AREA CHART – OS PENJAMINAN KUR
 # ===============================
-st.subheader("📈 Outstanding KUR (Gen 1 + Gen 2)")
+st.subheader("📈 OS Penjaminan KUR")
 
-if "Jenis" not in df_f.columns:
-    st.warning("Kolom 'Jenis' tidak tersedia")
-else:
-    df_kur = df_f[df_f["Jenis"].isin(["KUR Gen 1", "KUR Gen 2"])]
+df_kur = df[
+    df["Jenis"].isin(["KUR Gen 1", "KUR Gen 2"])
+]
 
-    if df_kur.empty:
-        st.warning("Data KUR Gen 1 & Gen 2 tidak tersedia")
-    else:
-        agg_df = (
-            df_kur
-            .groupby(["SortKey", "Periode_Label"], as_index=False)["Value"]
-            .sum()
-            .sort_values("SortKey")
-        )
+agg_chart = (
+    df_kur
+    .groupby(["SortKey", "Periode_Label"], as_index=False)["Value"]
+    .sum()
+    .sort_values("SortKey")
+)
 
-        agg_df["Value_T"] = agg_df["Value"] / 1_000_000_000_000
+agg_chart["Value_T"] = agg_chart["Value"] / 1_000_000_000_000
 
-        fig = px.area(
-            agg_df,
-            x="Periode_Label",
-            y="Value_T",
-            markers=True
-        )
+fig = px.area(
+    agg_chart,
+    x="Periode_Label",
+    y="Value_T",
+    markers=True
+)
 
-        fig.update_layout(
-            xaxis_title="Periode",
-            yaxis_title="Outstanding KUR (Triliun)",
-            yaxis=dict(ticksuffix=" T"),
-            hovermode="x unified"
-        )
+fig.update_layout(
+    xaxis_title="Periode",
+    yaxis_title="Outstanding (Triliun)",
+    yaxis=dict(ticksuffix=" T"),
+    hovermode="x unified"
+)
 
-        fig.update_xaxes(
-            type="category",
-            categoryorder="array",
-            categoryarray=agg_df["Periode_Label"].tolist(),
-            tickangle=-45
-        )
+fig.update_xaxes(
+    type="category",
+    categoryorder="array",
+    categoryarray=agg_chart["Periode_Label"],
+    tickangle=-45
+)
 
-        st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True)
 
 # ===============================
-# TABLE DETAIL
+# TABLE HASIL OLAHAN (KUR ONLY)
 # ===============================
-st.subheader("📋 Data Detail (Filtered, Tanpa Agregasi)")
-st.dataframe(df_f, use_container_width=True)
+st.subheader("📋 Tabel Hasil Olahan – OS Penjaminan KUR")
+
+pivot = (
+    df_kur
+    .pivot_table(
+        index=["SortKey", "Periode_Label"],
+        columns="Jenis",
+        values="Value",
+        aggfunc="sum"
+    )
+    .reset_index()
+    .sort_values("SortKey")
+)
+
+pivot["Total OS KUR"] = (
+    pivot.get("KUR Gen 1", 0).fillna(0) +
+    pivot.get("KUR Gen 2", 0).fillna(0)
+)
+
+st.dataframe(
+    pivot.style.format("Rp {:,.2f}"),
+    use_container_width=True
+)
 
 # ===============================
 # DOWNLOAD
 # ===============================
 st.download_button(
-    "⬇️ Download Data Filtered",
-    df_f.to_csv(index=False).encode("utf-8"),
-    "data_filtered.csv",
+    "⬇️ Download Tabel OS KUR",
+    pivot.to_csv(index=False).encode("utf-8"),
+    "os_penjaminan_kur.csv",
     "text/csv"
 )
