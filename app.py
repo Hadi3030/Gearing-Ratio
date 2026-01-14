@@ -176,6 +176,69 @@ if needed_cols.issubset(df_f.columns):
     st.plotly_chart(fig, use_container_width=True)
 
 # ===============================
+# AREA CHART – TOTAL BULANAN (EKUITAS kur)
+# ===============================
+st.subheader("📈 Tren Outstanding per Bulan EKUITAS KUR")
+
+needed_cols = {"Periode", "Value", "Jenis"}
+
+if needed_cols.issubset(df_f.columns):
+
+    df_tren = df_f.copy()
+
+    # Filter KUR Gen 1 & Gen 2
+    df_tren = df_tren[df_tren["Jenis"].isin(["Ekuitas KUR"])]
+
+    df_tren["Periode"] = pd.to_datetime(df_tren["Periode"], errors="coerce")
+    df_tren["Bulan"] = df_tren["Periode"].dt.month
+
+    bulan_id = {
+        1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+        5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+        9: "September", 10: "Oktober", 11: "November", 12: "Desember"
+    }
+    df_tren["Nama_Bulan"] = df_tren["Bulan"].map(bulan_id)
+
+    # Agregasi semua tahun
+    agg_df = df_tren.groupby("Nama_Bulan", as_index=False)["Value"].sum()
+
+    urutan_bulan = list(bulan_id.values())
+    agg_df["Nama_Bulan"] = pd.Categorical(
+        agg_df["Nama_Bulan"],
+        categories=urutan_bulan,
+        ordered=True
+    )
+    agg_df = agg_df.sort_values("Nama_Bulan")
+
+    # Konversi ke Triliun
+    agg_df["Value_T"] = agg_df["Value"] / 1_000_000_000_000
+
+    fig = px.area(
+        agg_df,
+        x="Nama_Bulan",
+        y="Value_T",
+        markers=True,
+        title="Total Outstanding Bulanan (Akumulasi Semua Tahun)"
+    )
+
+    fig.update_layout(
+        xaxis_title="Bulan",
+        yaxis_title="Outstanding",
+        hovermode="x unified",
+        yaxis=dict(
+            tickformat=",.0f",
+            ticksuffix="T"
+        )
+    )
+
+    fig.update_traces(
+        hovertemplate="Bulan: %{x}<br>Outstanding: %{y:.2f}T<extra></extra>"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ===============================
 # TABLE
 # ===============================
 st.subheader("📋 Data Detail")
