@@ -338,11 +338,11 @@ df_kur_sorted = df_kur.sort_values(
 df_kur_agg = (
     df_kur_sorted
     .groupby(["SortKey", "Periode_Label"], as_index=False)
-    .agg(OS_KUR&PEN_Rp =("Value", "last"))
+    .agg(OS_KUR_PEN_Rp =("Value", "last"))
     .sort_values("SortKey")
 )
 
-df_kur_agg["OS_KUR&PEN_T"] = df_kur_agg["OS_KUR&PEN_Rp"] / 1_000_000_000_000
+df_kur_agg["OS_KUR_PEN_T"] = df_kur_agg["OS_KUR_PEN_Rp"] / 1_000_000_000_000
 
 # ===============================
 # GRAFIK
@@ -350,13 +350,13 @@ df_kur_agg["OS_KUR&PEN_T"] = df_kur_agg["OS_KUR&PEN_Rp"] / 1_000_000_000_000
 fig = px.area(
     df_kur_agg,
     x="Periode_Label",
-    y="OS_KUR&PEN_T",
+    y="OS_KUR_PEN_T",
     markers=True
 )
 
 fig.update_layout(
     xaxis_title="Periode",
-    yaxis_title="Outstanding KUR&PEN (Triliun)",
+    yaxis_title="Outstanding KUR_PEN (Triliun)",
     yaxis=dict(ticksuffix=" T"),
     hovermode="x unified"
 )
@@ -377,8 +377,8 @@ st.subheader("📋 Tabel Hasil Pengolahan OS Penjaminan KUR & PEN")
 
 st.dataframe(
     df_kur_agg.style.format({
-        "OS_KUR&PEN_Rp": "Rp {:,.2f}",
-        "OS_KUR&PEN_T": "{:.2f}"
+        "OS_KUR_PEN_Rp": "Rp {:,.2f}",
+        "OS_KUR_PEN_T": "{:.2f}"
     }),
     use_container_width=True
 )
@@ -387,7 +387,7 @@ st.dataframe(
 # DOWNLOAD
 # ===============================
 st.download_button(
-    "⬇️ Download Hasil OS KUR&PEN",
+    "⬇️ Download Hasil OS KUR_PEN",
     df_kur_agg.to_csv(index=False).encode("utf-8"),
     "os_penjaminan_kur_pen.csv",
     "text/csv"
