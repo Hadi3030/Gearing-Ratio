@@ -105,21 +105,35 @@ df["Periode_Label"] = (
 )
 
 # ===============================
-# CLEAN VALUE (AMAN UNTUK EXCEL & CSV)
+# CLEAN VALUE (PER BARIS, PALING AMAN)
 # ===============================
 
-if pd.api.types.is_numeric_dtype(df["Value"]):
-    # Excel biasanya sudah numeric → langsung pakai
-    df["Value"] = df["Value"].astype(float)
-else:
-    # CSV / text → format Indonesia
-    df["Value"] = (
-        df["Value"]
-        .astype(str)
-        .str.replace(".", "", regex=False)   # hapus ribuan
-        .str.replace(",", ".", regex=False)  # koma jadi desimal
-    )
-    df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
+def parse_value(val):
+    if pd.isna(val):
+        return None
+
+    # Jika sudah numeric (Excel asli)
+    if isinstance(val, (int, float)):
+        return float(val)
+
+    # Jika string (CSV / text Excel)
+    text = str(val).strip()
+
+    # Format Indonesia: 1.234.567,89
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    # Format ribuan tanpa desimal
+    elif "," not in text and "." in text:
+        text = text.replace(".", "")
+
+    try:
+        return float(text)
+    except:
+        return None
+
+
+df["Value"] = df["Value"].apply(parse_value)
+
 
 
 # ===============================
