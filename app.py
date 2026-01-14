@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import re
 
 # ===============================
 # CONFIG
@@ -42,9 +43,6 @@ except Exception as e:
 # ===============================
 # BASIC CLEANING
 # ===============================
-if "Periode" in df.columns:
-    df["Periode"] = pd.to_datetime(df["Periode"], errors="coerce")
-
 if "Value" in df.columns:
     df["Value"] = (
         df["Value"]
@@ -58,25 +56,73 @@ if "Jumlah Debitur" in df.columns:
     df["Jumlah Debitur"] = pd.to_numeric(df["Jumlah Debitur"], errors="coerce")
 
 # ===============================
+# PERIODE PARSING (STRING / DATETIME)
+# ===============================
+bulan_map = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4,
+    "may": 5, "mei": 5,
+    "jun": 6, "jul": 7,
+    "aug": 8, "agu": 8,
+    "sep": 9,
+    "oct": 10, "okt": 10,
+    "nov": 11,
+    "dec": 12, "des": 12
+}
+
+def extract_month_year(val):
+    if pd.isna(val):
+        return None, None
+
+    # kalau datetime asli
+    if isinstance(val, pd.Timestamp):
+        return val.month, val.year
+
+    text = str(val).lower()
+
+    # bulan
+    month = None
+    for k, v in bulan_map.items():
+        if k in text:
+            month = v
+            break
+
+    # tahun (2 / 4 digit)
+    year = None
+    m = re.search(r"(20\d{2}|\d{2})", text)
+    if m:
+        y = int(m.group())
+        year = 2000 + y if y < 100 else y
+
+    return month, year
+
+df["Periode_Label"] = df["Periode"].astype(str)
+
+df[["Month", "Year"]] = df["Periode_Label"].apply(
+    lambda x: pd.Series(extract_month_year(x))
+)
+
+df["SortKey"] = df["Year"] * 100 + df["Month"]
+
+# ===============================
 # SIDEBAR FILTER
 # ===============================
 st.sidebar.header("🔎 Filter Data")
 
 df_f = df.copy()
 
-if "Jenis" in df.columns:
+if "Jenis" in df_f.columns:
     jenis_filter = st.sidebar.multiselect(
         "Jenis",
-        sorted(df["Jenis"].dropna().unique()),
-        default=sorted(df["Jenis"].dropna().unique())
+        sorted(df_f["Jenis"].dropna().unique()),
+        default=sorted(df_f["Jenis"].dropna().unique())
     )
     df_f = df_f[df_f["Jenis"].isin(jenis_filter)]
 
-if "Generasi" in df.columns:
+if "Generasi" in df_f.columns:
     gen_filter = st.sidebar.multiselect(
         "Generasi",
-        sorted(df["Generasi"].dropna().unique()),
-        default=sorted(df["Generasi"].dropna().unique())
+        sorted(df_f["Generasi"].dropna().unique()),
+        default=sorted(df_f["Generasi"].dropna().unique())
     )
     df_f = df_f[df_f["Generasi"].isin(gen_filter)]
 
@@ -108,78 +154,16 @@ if {"Jenis", "Jumlah Debitur"}.issubset(df_f.columns):
     st.plotly_chart(fig, use_container_width=True)
 
 # ===============================
-# AREA CHART – BULANAN AKUMULASI (SEMUA TAHUN)
+# AREA CHART – OUTSTANDING PER PERIODE (STRING AMAN)
 # ===============================
-st.subheader("📈 Outstanding Bulanan (Akumulasi Semua Tahun)")
+st.subheader("📈 Outstanding per Periode")
 
-bulan_id = {
-    1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
-    5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
-    9: "September", 10: "Oktober", 11: "November", 12: "Desember"
-}
-
-if {"Periode", "Value", "Jenis"}.issubset(df_f.columns):
-
-    df_tren = df_f[df_f["Jenis"].isin(["KUR Gen 1", "KUR Gen 2"])].copy()
-
-    df_tren["Month"] = df_tren["Periode"].dt.month
-    df_tren["Nama_Bulan"] = df_tren["Month"].map(bulan_id)
+if {"Periode_Label", "SortKey", "Value"}.issubset(df_f.columns):
 
     agg_df = (
-        df_tren
-        .groupby("Month", as_index=False)["Value"]
-        .sum()
-        .sort_values("Month")
-    )
-
-    agg_df["Nama_Bulan"] = agg_df["Month"].map(bulan_id)
-    agg_df["Value_T"] = agg_df["Value"] / 1_000_000_000_000_000
-
-    fig = px.area(
-        agg_df,
-        x="Nama_Bulan",
-        y="Value_T",
-        markers=True
-    )
-
-    fig.update_layout(
-        xaxis_title="Bulan",
-        yaxis_title="Outstanding (T)",
-        yaxis=dict(ticksuffix="T"),
-        hovermode="x unified"
-    )
-
-    fig.update_xaxes(
-        type="category",
-        categoryorder="array",
-        categoryarray=agg_df["Nama_Bulan"].tolist(),
-        tickmode="array",
-        tickvals=agg_df["Nama_Bulan"].tolist(),
-        ticktext=agg_df["Nama_Bulan"].tolist()
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-# ===============================
-# AREA CHART – BULANAN PER TAHUN
-# ===============================
-st.subheader("📈 Outstanding Bulanan per Tahun")
-
-if {"Periode", "Value", "Jenis"}.issubset(df_f.columns):
-
-    df_tren = df_f[df_f["Jenis"].isin(["KUR Gen 1", "KUR Gen 2"])].copy()
-
-    df_tren["Year"] = df_tren["Periode"].dt.year
-    df_tren["Month"] = df_tren["Periode"].dt.month
-    df_tren["SortKey"] = df_tren["Year"] * 100 + df_tren["Month"]
-
-    df_tren["Bulan_Tahun"] = (
-        df_tren["Month"].map(bulan_id) + " " + df_tren["Year"].astype(str)
-    )
-
-    agg_df = (
-        df_tren
-        .groupby(["SortKey", "Bulan_Tahun"], as_index=False)["Value"]
+        df_f
+        .dropna(subset=["SortKey"])
+        .groupby(["SortKey", "Periode_Label"], as_index=False)["Value"]
         .sum()
         .sort_values("SortKey")
     )
@@ -188,7 +172,7 @@ if {"Periode", "Value", "Jenis"}.issubset(df_f.columns):
 
     fig = px.area(
         agg_df,
-        x="Bulan_Tahun",
+        x="Periode_Label",
         y="Value_T",
         markers=True
     )
@@ -203,10 +187,10 @@ if {"Periode", "Value", "Jenis"}.issubset(df_f.columns):
     fig.update_xaxes(
         type="category",
         categoryorder="array",
-        categoryarray=agg_df["Bulan_Tahun"].tolist(),
+        categoryarray=agg_df["Periode_Label"].tolist(),
         tickmode="array",
-        tickvals=agg_df["Bulan_Tahun"].tolist(),
-        ticktext=agg_df["Bulan_Tahun"].tolist(),
+        tickvals=agg_df["Periode_Label"].tolist(),
+        ticktext=agg_df["Periode_Label"].tolist(),
         tickangle=-45
     )
 
