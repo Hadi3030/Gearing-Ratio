@@ -56,8 +56,14 @@ if "Jumlah Debitur" in df.columns:
     df["Jumlah Debitur"] = pd.to_numeric(df["Jumlah Debitur"], errors="coerce")
 
 # ===============================
-# PERIODE PARSING (STRING / DATETIME)
+# PERIODE HANDLING (AMAN UNTUK STRING)
 # ===============================
+# simpan periode mentah
+df["Periode_Raw"] = df["Periode"]
+
+# coba parsing datetime TANPA merusak string
+df["Periode_DT"] = pd.to_datetime(df["Periode_Raw"], errors="coerce")
+
 bulan_map = {
     "jan": 1, "feb": 2, "mar": 3, "apr": 4,
     "may": 5, "mei": 5,
@@ -69,15 +75,16 @@ bulan_map = {
     "dec": 12, "des": 12
 }
 
-def extract_month_year(val):
-    if pd.isna(val):
+def extract_month_year(raw, dt):
+    # kalau datetime valid → pakai datetime
+    if pd.notna(dt):
+        return dt.month, dt.year
+
+    # fallback ke string
+    if pd.isna(raw):
         return None, None
 
-    # kalau datetime asli
-    if isinstance(val, pd.Timestamp):
-        return val.month, val.year
-
-    text = str(val).lower()
+    text = str(raw).lower()
 
     # bulan
     month = None
@@ -95,13 +102,13 @@ def extract_month_year(val):
 
     return month, year
 
-df["Periode_Label"] = df["Periode"].astype(str)
-
-df[["Month", "Year"]] = df["Periode_Label"].apply(
-    lambda x: pd.Series(extract_month_year(x))
+df[["Month", "Year"]] = df.apply(
+    lambda r: pd.Series(extract_month_year(r["Periode_Raw"], r["Periode_DT"])),
+    axis=1
 )
 
 df["SortKey"] = df["Year"] * 100 + df["Month"]
+df["Periode_Label"] = df["Periode_Raw"].astype(str)
 
 # ===============================
 # SIDEBAR FILTER
@@ -154,7 +161,7 @@ if {"Jenis", "Jumlah Debitur"}.issubset(df_f.columns):
     st.plotly_chart(fig, use_container_width=True)
 
 # ===============================
-# AREA CHART – OUTSTANDING PER PERIODE (STRING AMAN)
+# AREA CHART – OUTSTANDING PER PERIODE
 # ===============================
 st.subheader("📈 Outstanding per Periode")
 
