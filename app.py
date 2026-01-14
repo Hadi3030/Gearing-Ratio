@@ -120,11 +120,11 @@ else:
     )
 
 # ===============================
-# LINE / AREA CHART – TREN PER BULAN
+# LINE / AREA CHART – TREN PER BULAN (TOTAL ALL JENIS)
 # ===============================
-st.subheader("📈 Tren Outstanding (Akumulasi Tahunan per Bulan)")
+st.subheader("📈 Tren Outstanding per Bulan (Total Semua Jenis)")
 
-needed_cols = {"Periode", "Value", "Jenis"}
+needed_cols = {"Periode", "Value"}
 
 if needed_cols.issubset(df_f.columns):
 
@@ -132,57 +132,47 @@ if needed_cols.issubset(df_f.columns):
 
     # Pastikan datetime
     df_tren["Periode"] = pd.to_datetime(df_tren["Periode"], errors="coerce")
-
     df_tren["Tahun"] = df_tren["Periode"].dt.year
     df_tren["Bulan"] = df_tren["Periode"].dt.month
     df_tren["Tanggal"] = df_tren["Periode"].dt.day
 
-    # Mapping bulan Indonesia (ANTI ERROR LOCALE)
+    # Mapping bulan Indonesia
     bulan_id = {
-        1: "Januari",
-        2: "Februari",
-        3: "Maret",
-        4: "April",
-        5: "Mei",
-        6: "Juni",
-        7: "Juli",
-        8: "Agustus",
-        9: "September",
-        10: "Oktober",
-        11: "November",
-        12: "Desember",
+        1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+        5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+        9: "September", 10: "Oktober", 11: "November", 12: "Desember"
     }
-
     df_tren["Nama_Bulan"] = df_tren["Bulan"].map(bulan_id)
 
-    df_tren["Bulan_Tanggal"] = (
-        df_tren["Tanggal"].astype(str)
-        + " "
-        + df_tren["Nama_Bulan"]
-    )
+    # Label bulan + tanggal (misal 31 Januari)
+    df_tren["Bulan_Tanggal"] = df_tren["Tanggal"].astype(str) + " " + df_tren["Nama_Bulan"]
 
-    # Agregasi
+    # Agregasi: TOTAL value per Bulan (semua jenis digabung)
     agg_df = (
         df_tren
-        .groupby(["Tahun", "Bulan", "Bulan_Tanggal", "Jenis"], as_index=False)
-        ["Value"]
+        .groupby(["Tahun", "Bulan"], as_index=False)["Value"]
         .sum()
         .sort_values(["Tahun", "Bulan"])
     )
 
+    # Buat label x axis: Bulan-Tahun
+    agg_df["Bulan_Tahun"] = agg_df["Bulan"].map(bulan_id) + " " + agg_df["Tahun"].astype(str)
+
+    # Konversi Y ke Triliun
+    agg_df["Value_T"] = agg_df["Value"] / 1_000_000_000_000
+
+    # Area chart
     fig = px.area(
         agg_df,
-        x="Bulan_Tanggal",
-        y="Value",
-        color="Jenis",
-        line_group="Tahun",
+        x="Bulan_Tahun",
+        y="Value_T",
         markers=True,
-        title="Tren Outstanding (Akumulasi Tahunan per Bulan)"
+        title="Tren Outstanding per Bulan (Total Semua Jenis)"
     )
 
     fig.update_layout(
-        xaxis_title="Periode (Tanggal - Bulan)",
-        yaxis_title="Total Outstanding",
+        xaxis_title="Bulan - Tahun",
+        yaxis_title="Outstanding (Triliun)",
         hovermode="x unified"
     )
 
@@ -193,6 +183,7 @@ else:
         f"❌ Grafik tren tidak dapat ditampilkan. Kolom kurang: "
         f"{needed_cols - set(df_f.columns)}"
     )
+
 
 # ===============================
 # TABLE
