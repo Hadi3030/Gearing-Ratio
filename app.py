@@ -100,7 +100,14 @@ df["Periode_Label"] = (
 )
 
 # ===============================
-# CLEAN VALUE (AMAN)
+# FLAG AUDITED (PRIORITAS)
+# ===============================
+df["Is_Audited"] = df["Periode_Raw"].str.contains(
+    "audit", case=False, na=False
+).astype(int)
+
+# ===============================
+# CLEAN VALUE (AMAN FORMAT INDONESIA)
 # ===============================
 def parse_value(val):
     if pd.isna(val):
@@ -109,9 +116,11 @@ def parse_value(val):
         return float(val)
 
     text = str(val).strip()
-    if "," in text and "." in text:
+
+    # format Indonesia: 516.859.837.493,95
+    if "." in text and "," in text:
         text = text.replace(".", "").replace(",", ".")
-    elif "," not in text and "." in text:
+    elif "." in text and "," not in text:
         text = text.replace(".", "")
 
     try:
@@ -122,7 +131,7 @@ def parse_value(val):
 df["Value"] = df["Value"].apply(parse_value)
 
 # ===============================
-# SIDEBAR (TIDAK UNTUK KUR GEN)
+# SIDEBAR FILTER
 # ===============================
 st.sidebar.header("🔎 Filter Data")
 
@@ -131,7 +140,7 @@ df_f = df.copy()
 # ===============================
 # FILTER TAHUN
 # ===============================
-available_years = sorted(df_f["Year"].dropna().unique().astype(int))
+available_years = sorted(df_f["Year"].unique())
 selected_years = st.sidebar.multiselect(
     "Tahun",
     available_years,
@@ -143,26 +152,18 @@ df_f = df_f[df_f["Year"].isin(selected_years)]
 # ===============================
 # FILTER BULAN
 # ===============================
-bulan_nama = {
-    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
-    5: "Mei", 6: "Jun", 7: "Jul", 8: "Agu",
-    9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
-}
-
-df_f["Bulan_Nama"] = df_f["Month"].map(bulan_nama)
-
-available_months = list(bulan_nama.values())
+df_f["Bulan_Nama"] = df_f["Month"].map(bulan_id)
 
 selected_months = st.sidebar.multiselect(
     "Bulan",
-    available_months,
-    default=available_months
+    list(bulan_id.values()),
+    default=list(bulan_id.values())
 )
 
 df_f = df_f[df_f["Bulan_Nama"].isin(selected_months)]
 
 # ===============================
-# PREVIEW DATA (MENTAH)
+# PREVIEW DATA (MENTAH - TANPA AGREGASI)
 # ===============================
 st.subheader("👀 Preview Data (Raw / As Is)")
 st.dataframe(
@@ -171,16 +172,23 @@ st.dataframe(
 )
 
 # ===============================
-# AGREGASI KHUSUS KUR
+# AGREGASI KHUSUS KUR (AUDITED PRIORITY)
 # ===============================
 st.subheader("📈 OS Penjaminan KUR")
 
 df_kur = df_f[df_f["Jenis"].isin(["KUR Gen 1", "KUR Gen 2"])]
 
+# Urutkan: audited diutamakan
+df_kur_sorted = df_kur.sort_values(
+    ["SortKey", "Is_Audited"],
+    ascending=[True, False]
+)
+
+# Ambil audited jika ada, jika tidak ambil data biasa
 df_kur_agg = (
-    df_kur
+    df_kur_sorted
     .groupby(["SortKey", "Periode_Label"], as_index=False)
-    .agg(OS_KUR_Rp=("Value", "sum"))
+    .agg(OS_KUR_Rp=("Value", "last"))
     .sort_values("SortKey")
 )
 
