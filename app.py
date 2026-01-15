@@ -11,7 +11,12 @@ st.set_page_config(
     layout="wide"
 )
 st.info("Website ini akan otomatis menampilkan dashbord untuk perhitungan Trend Gearing Ratio setelah anda mengupload file dengan format xlxs atau csv, dan format tabel yang sudah di tentukan")
-
+# Tampilkan gambar contoh format Excel
+st.image(
+    "gambar/ssXlsx.png",
+    caption="Contoh format file Excel (.xlsx) yang didukung",
+    use_container_width=True
+)
 st.title("📊 Summary Tend Gearing Ratio")
 
 # ===============================
