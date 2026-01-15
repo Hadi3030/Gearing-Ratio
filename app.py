@@ -24,21 +24,6 @@ with col_title:
         unsafe_allow_html=True
     )
 
-# ===============================
-# FOOTER
-# ===============================
-st.markdown("---")
-
-st.markdown(
-    """
-    <div style="text-align:center; color:gray; font-size:13px;">
-        © 2026 | Dashboard Gearing Ratio KUR & PEN<br>
-        Developed with ❤️ using <b>Streamlit</b> & <b>Plotly</b>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-#=======================================================================================================================
 
 # ===============================
 # CONFIG
@@ -66,6 +51,21 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is None:
     st.info("Silakan upload file terlebih dahulu")
+# ===============================
+# FOOTER
+# ===============================
+st.markdown("---")
+
+st.markdown(
+    """
+    <div style="text-align:center; color:gray; font-size:13px;">
+        © 2026 | Dashboard Gearing Ratio KUR & PEN<br>
+        Developed with ❤️ using <b>Streamlit</b> & <b>Plotly</b>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
     st.stop()
 
 # ===============================
