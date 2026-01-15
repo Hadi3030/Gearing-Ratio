@@ -473,3 +473,84 @@ st.download_button(
     "gearing_ratio_kur.csv",
     "text/csv"
 )
+
+#================================================================================================================================================
+#===================================================================================================================================================
+
+# ===========================================
+# AGREGASI KUR UNTUK GEaring Ratio KUR & PEN
+# ===========================================
+st.subheader("📈 Gearing Ratio KUR & PEN")
+
+# Ambil KUR Gen 1 + KUR Gen 2 untuk numerator
+df_kur_num = df_f[df_f["Jenis"].isin(["KUR Gen 1", "KUR Gen 2", "PEN Gen 1", "PEN Gen 2"])]
+
+# Jumlahkan Value per Periode_Label (numerator)
+df_kur_num_agg = (
+    df_kur_num.groupby(["Periode_Label"], as_index=False)
+    .agg(KUR_PEN_Total_Rp=("Value", "sum"))
+)
+
+# Ambil Ekuitas KUR (asumsi ada di df_f, misal Jenis == "Ekuitas KUR")
+df_ekuitas = df_f[df_f["Jenis"] == "Ekuitas KUR"]
+
+# Gabungkan numerator dan ekuitas berdasarkan Periode_Label
+df_gear = pd.merge(
+    df_kur_num_agg,
+    df_ekuitas[["Periode_Label", "Value"]].rename(columns={"Value": "Ekuitas_Rp"}),
+    on="Periode_Label",
+    how="left"
+)
+
+# Hitung Gearing Ratio
+df_gear["GR_KUR_PEN"] = df_gear["KUR_PEN_Total_Rp"] / df_gear["Ekuitas_Rp"]
+
+# ===============================
+# GRAFIK GEaring Ratio
+# ===============================
+fig = px.line(
+    df_gear,
+    x="Periode_Label",
+    y="Gearing_Ratio",
+    markers=True
+)
+
+fig.update_layout(
+    xaxis_title="Periode",
+    yaxis_title="Gearing Ratio KUR dan PEN",
+    yaxis=dict(ticksuffix="x"),  # misal ratio dikali 1
+    hovermode="x unified"
+)
+
+fig.update_xaxes(
+    type="category",
+    categoryorder="array",
+    categoryarray=df_gear["Periode_Label"].tolist(),
+    tickangle=-45
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# ===============================
+# TABEL HASIL
+# ===============================
+st.subheader("📋 Tabel Gearing Ratio KUR dan PEN")
+
+st.dataframe(
+    df_gear.style.format({
+        "KUR_PEN_Total_Rp": "Rp {:,.2f}",
+        "Ekuitas_Rp": "Rp {:,.2f}",
+        "GR_KUR_PEN_Rp": "{:.2f}"
+    }),
+    use_container_width=True
+)
+
+# ===============================
+# DOWNLOAD
+# ===============================
+st.download_button(
+    "⬇️ Download Hasil Gearing Ratio KUR dan PEN",
+    df_gear.to_csv(index=False).encode("utf-8"),
+    "gearing_ratio_kurpen.csv",
+    "text/csv"
+)
