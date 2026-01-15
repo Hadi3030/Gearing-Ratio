@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Dashboard KUR & PEN",
     layout="wide"
 )
-    st.info("Website ini akan otomatis menampilkan dashbord untuk perhitungan Trend Gearing Ratio")
+    st.info("Website ini akan otomatis menampilkan dashbord untuk perhitungan Trend Gearing Ratio setelah anda mengupload file dengan format xlxs atau csv, dan format tabel yang sudah di tentukan")
 
 st.title("📊 Summary Tend Gearing Ratio")
 
@@ -166,7 +166,7 @@ df_f = df_f[df_f["Bulan_Nama"].isin(selected_months)]
 # ===============================
 # PREVIEW DATA (MENTAH - TANPA AGREGASI)
 # ===============================
-st.subheader("👀 Preview Data (Raw / As Is)")
+st.subheader("👀 Preview Data")
 st.dataframe(
     df_f.style.format({"Value": "Rp {:,.2f}"}),
     use_container_width=True
