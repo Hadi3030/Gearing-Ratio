@@ -11,7 +11,6 @@ st.set_page_config(
     layout="wide"
 )
 st.info("Website ini akan otomatis menampilkan dashbord untuk perhitungan Trend Gearing Ratio")
-st.stop()
 
 st.title("📊 Summary Tend Gearing Ratio")
 
