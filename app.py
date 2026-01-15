@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Dashboard KUR & PEN",
     layout="wide"
 )
-st.info("Website ini akan otomatis menampilkan dashbord untuk perhitungan Trend Gearing Ratio setelah anda mengupload file dengan format xlxs atau csv, dan format tabel yang sudah di tentukan")
+st.info("Website ini akan otomatis menampilkan dashboard untuk perhitungan Trend Gearing Ratio setelah anda mengupload file dengan format xlxs atau csv, dan pastikan format tabel yang akan diinput sesuai dengan contoh")
 # Tampilkan gambar contoh format Excel
 st.image(
     "gambar/ssXlsx.png",
