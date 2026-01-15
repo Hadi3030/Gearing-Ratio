@@ -10,8 +10,10 @@ st.set_page_config(
     page_title="Dashboard KUR & PEN",
     layout="wide"
 )
+st.info("Website ini akan otomatis menampilkan dashbord untuk perhitungan Trend Gearing Ratio")
+st.stop()
 
-st.title("📊 Summary Outstanding Penjaminan KUR & PEN")
+st.title("📊 Summary Tend Gearing Ratio")
 
 # ===============================
 # UPLOAD FILE
