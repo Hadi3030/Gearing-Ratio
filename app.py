@@ -327,25 +327,25 @@ st.plotly_chart(fig, use_container_width=True)
 # ===============================
 # TABEL HASIL OLAHAN
 # ===============================
-st.subheader("📋 Tabel Hasil Pengolahan Ekuitas KUR")
+with st.expander("📋 Tabel Hasil Pengolahan Ekuitas KUR", expanded=False):
 
-st.dataframe(
-    df_kur_agg.style.format({
-        "Ekuitas_KUR_Rp": "Rp {:,.2f}",
-        "Ekuitas_KUR_T": "{:.2f}"
-    }),
-    use_container_width=True
-)
-
-# ===============================
-# DOWNLOAD
-# ===============================
-st.download_button(
-    "⬇️ Download Hasil Ekuitas KUR",
-    df_kur_agg.to_csv(index=False).encode("utf-8"),
-    "Ekuitas_kur.csv",
-    "text/csv"
-)
+        st.dataframe(
+            df_kur_agg.style.format({
+                "Ekuitas_KUR_Rp": "Rp {:,.2f}",
+                "Ekuitas_KUR_T": "{:.2f}"
+            }),
+            use_container_width=True
+        )
+        
+        # ===============================
+        # DOWNLOAD
+        # ===============================
+        st.download_button(
+            "⬇️ Download Hasil Ekuitas KUR",
+            df_kur_agg.to_csv(index=False).encode("utf-8"),
+            "Ekuitas_kur.csv",
+            "text/csv"
+        )
 
 #============================================================================================================================================
 #==============================================================================================================================================
@@ -402,25 +402,25 @@ st.plotly_chart(fig, use_container_width=True)
 # ===============================
 # TABEL HASIL OLAHAN
 # ===============================
-st.subheader("📋 Tabel Hasil Pengolahan OS Penjaminan KUR & PEN")
+with st.expander("📋 Tabel Hasil Pengolahan OS Penjaminan KUR & PEN", expanded=False):
 
-st.dataframe(
-    df_kur_agg.style.format({
-        "OS_KUR_PEN_Rp": "Rp {:,.2f}",
-        "OS_KUR_PEN_T": "{:.2f}"
-    }),
-    use_container_width=True
-)
-
-# ===============================
-# DOWNLOAD
-# ===============================
-st.download_button(
-    "⬇️ Download Hasil OS KUR_PEN",
-    df_kur_agg.to_csv(index=False).encode("utf-8"),
-    "os_penjaminan_kur_pen.csv",
-    "text/csv"
-)
+        st.dataframe(
+            df_kur_agg.style.format({
+                "OS_KUR_PEN_Rp": "Rp {:,.2f}",
+                "OS_KUR_PEN_T": "{:.2f}"
+            }),
+            use_container_width=True
+        )
+        
+        # ===============================
+        # DOWNLOAD
+        # ===============================
+        st.download_button(
+            "⬇️ Download Hasil OS KUR_PEN",
+            df_kur_agg.to_csv(index=False).encode("utf-8"),
+            "os_penjaminan_kur_pen.csv",
+            "text/csv"
+        )
 
 #================================================================================================================================================
 #===================================================================================================================================================
@@ -482,26 +482,26 @@ st.plotly_chart(fig, use_container_width=True)
 # ===============================
 # TABEL HASIL
 # ===============================
-st.subheader("📋 Tabel Gearing Ratio KUR")
+with st.expander("📋 Tabel Gearing Ratio KUR", expanded=False):
 
-st.dataframe(
-    df_gear.style.format({
-        "KUR_Total_Rp": "Rp {:,.2f}",
-        "Ekuitas_Rp": "Rp {:,.2f}",
-        "Gearing_Ratio": "{:.2f}"
-    }),
-    use_container_width=True
-)
-
-# ===============================
-# DOWNLOAD
-# ===============================
-st.download_button(
-    "⬇️ Download Hasil Gearing Ratio KUR",
-    df_gear.to_csv(index=False).encode("utf-8"),
-    "gearing_ratio_kur.csv",
-    "text/csv"
-)
+        st.dataframe(
+            df_gear.style.format({
+                "KUR_Total_Rp": "Rp {:,.2f}",
+                "Ekuitas_Rp": "Rp {:,.2f}",
+                "Gearing_Ratio": "{:.2f}"
+            }),
+            use_container_width=True
+        )
+        
+        # ===============================
+        # DOWNLOAD
+        # ===============================
+        st.download_button(
+            "⬇️ Download Hasil Gearing Ratio KUR",
+            df_gear.to_csv(index=False).encode("utf-8"),
+            "gearing_ratio_kur.csv",
+            "text/csv"
+        )
 
 #================================================================================================================================================
 #===================================================================================================================================================
@@ -563,26 +563,26 @@ st.plotly_chart(fig, use_container_width=True)
 # ===============================
 # TABEL HASIL
 # ===============================
-st.subheader("📋 Tabel Gearing Ratio KUR dan PEN")
+with st.expander("📋 Tabel Gearing Ratio KUR dan PEN", expanded=False):
 
-st.dataframe(
-    df_gear.style.format({
-        "KUR_PEN_Total_Rp": "Rp {:,.2f}",
-        "Ekuitas_Rp": "Rp {:,.2f}",
-        "GR_KUR_PEN": "{:.2f}"
-    }),
-    use_container_width=True
-)
-
-# ===============================
-# DOWNLOAD
-# ===============================
-st.download_button(
-    "⬇️ Download Hasil Gearing Ratio KUR dan PEN",
-    df_gear.to_csv(index=False).encode("utf-8"),
-    "gearing_ratio_kurpen.csv",
-    "text/csv"
-)
+        st.dataframe(
+            df_gear.style.format({
+                "KUR_PEN_Total_Rp": "Rp {:,.2f}",
+                "Ekuitas_Rp": "Rp {:,.2f}",
+                "GR_KUR_PEN": "{:.2f}"
+            }),
+            use_container_width=True
+        )
+        
+        # ===============================
+        # DOWNLOAD
+        # ===============================
+        st.download_button(
+            "⬇️ Download Hasil Gearing Ratio KUR dan PEN",
+            df_gear.to_csv(index=False).encode("utf-8"),
+            "gearing_ratio_kurpen.csv",
+            "text/csv"
+        )
 
 #==========================================================================================================================
 # ===============================
