@@ -192,11 +192,13 @@ df_f = df_f[df_f["Bulan_Nama"].isin(selected_months)]
 # ===============================
 # PREVIEW DATA (MENTAH - TANPA AGREGASI)
 # ===============================
-st.subheader("👀 Preview Data")
-st.dataframe(
-    df_f.style.format({"Value": "Rp {:,.2f}"}),
-    use_container_width=True
-)
+with st.expander("👀 Preview Data (Klik untuk tampil / sembunyi)", expanded=False):
+
+    st.dataframe(
+        df_f.style.format({"Value": "Rp {:,.2f}"}),
+        use_container_width=True
+    )
+
 
 # ===============================
 # AGREGASI KHUSUS KUR (AUDITED PRIORITY)
