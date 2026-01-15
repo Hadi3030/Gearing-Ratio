@@ -540,7 +540,7 @@ st.dataframe(
     df_gear.style.format({
         "KUR_PEN_Total_Rp": "Rp {:,.2f}",
         "Ekuitas_Rp": "Rp {:,.2f}",
-        "GR_KUR_PEN_Rp": "{:.2f}"
+        "GR_KUR_PEN": "{:.2f}"
     }),
     use_container_width=True
 )
