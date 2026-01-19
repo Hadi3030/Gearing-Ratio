@@ -620,6 +620,48 @@ def load_data(file):
 
 df1 = load_data(uploaded_file1)
 
+# ===============================
+# CLEAN VALUE (AMAN FORMAT INDONESIA)
+# ===============================
+def parse_value(val):
+    if pd.isna(val):
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+
+    text = str(val).strip()
+
+    # format Indonesia: 516.859.837.493,95
+    if "." in text and "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif "." in text and "," not in text:
+        text = text.replace(".", "")
+
+    try:
+        return float(text)
+    except:
+        return None
+
+df1["Value"] = df1["Value"].apply(parse_value)
+
+# ===============================
+# SIDEBAR FILTER
+# ===============================
+st.sidebar.header("🔎 Filter Data")
+
+df_f1 = df1.copy()
+
+# ===============================
+# PREVIEW DATA (MENTAH - TANPA AGREGASI)
+# ===============================
+with st.expander("👀 Preview Data (Klik untuk tampil / sembunyi)", expanded=False):
+
+    st.dataframe(
+        df_f1.style.format({"Value": "Rp {:,.2f}"}),
+        use_container_width=True
+    )
+
+
 #==========================================================================================================================
 # ===============================
 # FOOTER
