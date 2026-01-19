@@ -45,7 +45,7 @@ st.title("📊 Summary Tend Gearing Ratio")
 # ===============================
 uploaded_file = st.file_uploader(
     "📥 Upload file Excel / CSV",
-    type=["csv", "xlsx"]
+    type=["csv", "xlsx"],
     key="upload_Gearing"
 )
 
@@ -601,7 +601,7 @@ st.set_page_config(
 # ===============================
 uploaded_file1 = st.file_uploader(
     "📥 Upload file Excel / CSV",
-    type=["csv", "xlsx"]
+    type=["csv", "xlsx"],
     key="upload_all"
 )
 
