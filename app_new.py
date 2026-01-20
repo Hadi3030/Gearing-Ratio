@@ -894,7 +894,6 @@ with st.expander("📋 Tabel Gearing Ratio KUR dan PEN", expanded=False):
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 
 # ===============================
@@ -905,7 +904,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Dashboard KUR & PEN (Auto Structural Sheet)")
+st.title("📊 Summary GEN / Tenor / Issued Year")
 
 # ===============================
 # UPLOAD FILE
@@ -920,227 +919,194 @@ if uploaded_file is None:
     st.stop()
 
 # ===============================
-# GET SHEET NAMES
+# SHEET HANDLING
 # ===============================
+sheet_names = None
 if uploaded_file.name.endswith(".xlsx"):
-    sheet_names = pd.ExcelFile(uploaded_file).sheet_names
-else:
-    sheet_names = ["CSV"]
+    xls = pd.ExcelFile(uploaded_file)
+    sheet_names = xls.sheet_names
 
-# Skip sheet Proyeksi
-sheet_names = [s for s in sheet_names if s.lower() != "proyeksi"]
+st.sidebar.header("🔎 Filter Data")
+
+selected_sheet = None
+if sheet_names:
+    selected_sheet = st.sidebar.selectbox(
+        "📄 Pilih Sheet",
+        sheet_names
+    )
 
 # ===============================
 # LOAD DATA
 # ===============================
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=True)
 def load_data(file, sheet=None):
     if file.name.endswith(".csv"):
         return pd.read_csv(file)
     return pd.read_excel(file, sheet_name=sheet)
 
+df = load_data(uploaded_file, selected_sheet)
+
+if df.empty:
+    st.warning("⚠️ Data kosong")
+    st.stop()
+
 # ===============================
-# PARSE VALUE (FORMAT INDONESIA)
+# AUTO DETECT KOLOM
+# ===============================
+cols = df.columns.tolist()
+
+col_periode = cols[0]
+col_metrics = cols[1]
+col_kategori = cols[2]   # INI KUNCI UTAMA
+col_value = "Value"
+
+# ===============================
+# CLEAN VALUE
 # ===============================
 def parse_value(val):
     if pd.isna(val):
         return None
     if isinstance(val, (int, float)):
         return float(val)
-
     text = str(val).strip()
     if "." in text and "," in text:
         text = text.replace(".", "").replace(",", ".")
     elif "." in text:
         text = text.replace(".", "")
-
     try:
         return float(text)
     except:
         return None
 
+if col_value in df.columns:
+    df[col_value] = df[col_value].apply(parse_value)
+
 # ===============================
-# LOOP PER SHEET
+# FILTER DINAMIS
 # ===============================
-for sheet in sheet_names:
+def make_filter(column_name, label):
+    if column_name in df.columns:
+        opts = sorted(df[column_name].dropna().unique())
+        return st.sidebar.multiselect(label, opts, default=opts)
+    return None
 
-    st.divider()
-    st.header(f"📘 Sheet: {sheet}")
+filter_kredit = make_filter("Jenis Kredit", "💳 Jenis Kredit (KUR / PEN)")
+filter_periode = make_filter(col_periode, "🗓️ Periode")
 
-    df_raw = load_data(uploaded_file, sheet if sheet != "CSV" else None)
+df_f = df.copy()
 
-    if df_raw.empty:
-        st.warning("Sheet kosong")
-        continue
+if filter_kredit is not None:
+    df_f = df_f[df_f["Jenis Kredit"].isin(filter_kredit)]
 
-    # ===============================
-    # VALIDASI STRUKTUR MINIMAL
-    # ===============================
-    cols = list(df_raw.columns)
+if filter_periode is not None:
+    df_f = df_f[df_f[col_periode].isin(filter_periode)]
 
-    if len(cols) < 5:
-        st.warning("Struktur kolom tidak memenuhi standar → dilewati")
-        continue
+# ===============================
+# AGREGASI
+# ===============================
+df_agg = (
+    df_f
+    .groupby([col_kategori, col_metrics], as_index=False)
+    .agg(Total=("Value", "sum"))
+)
 
-    # ===============================
-    # MAPPING BERDASARKAN POSISI KOLOM
-    # ===============================
-    COL_PERIODE = cols[0]
-    COL_KURPEN = cols[1]
-    COL_DIMENSI = cols[2]   # <<< KUNCI UTAMA
-    COL_METRICS = "Metrics"
-    COL_VALUE = "Value"
+# ===============================
+# PISAH DEBITUR & NON-DEBITUR
+# ===============================
+df_debitur = df_agg[df_agg[col_metrics].str.contains("debitur", case=False)]
+df_non_debitur = df_agg[~df_agg[col_metrics].str.contains("debitur", case=False)]
 
-    dimensi_label = COL_DIMENSI  # Untuk UI
+# ===============================
+# GRAFIK UTAMA (DUAL AXIS)
+# ===============================
+fig = go.Figure()
 
-    df = df_raw.rename(columns={
-        COL_PERIODE: "Periode",
-        COL_KURPEN: "KUR/PEN",
-        COL_DIMENSI: "Dimensi"
-    })
-
-    # ===============================
-    # CLEAN VALUE
-    # ===============================
-    if "Value" in df.columns:
-        df["Value"] = df["Value"].apply(parse_value)
-    else:
-        st.warning("Kolom Value tidak ditemukan")
-        continue
-
-    # ===============================
-    # PREVIEW DATA
-    # ===============================
-    with st.expander("👀 Preview Data", expanded=False):
-        df_prev = df.copy()
-
-        if "Metrics" in df_prev.columns:
-            def fmt(row):
-                if "debitur" in str(row["Metrics"]).lower():
-                    return f"{row['Value']:,.0f}" if pd.notna(row["Value"]) else ""
-                return f"Rp {row['Value']:,.2f}" if pd.notna(row["Value"]) else ""
-
-            df_prev["Value"] = df_prev.apply(fmt, axis=1)
-
-        st.dataframe(df_prev, use_container_width=True)
-
-    # ===============================
-    # FILTER (STRUKTURAL)
-    # ===============================
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        per = st.multiselect(
-            "📅 Periode",
-            sorted(df["Periode"].dropna().unique()),
-            default=sorted(df["Periode"].dropna().unique()),
-            key=f"per_{sheet}"
-        )
-
-    with c2:
-        kp = st.multiselect(
-            "🏦 KUR / PEN",
-            sorted(df["KUR/PEN"].dropna().unique()),
-            default=sorted(df["KUR/PEN"].dropna().unique()),
-            key=f"kp_{sheet}"
-        )
-
-    with c3:
-        dim = st.multiselect(
-            f"🏷️ {dimensi_label}",
-            sorted(df["Dimensi"].dropna().unique()),
-            default=sorted(df["Dimensi"].dropna().unique()),
-            key=f"dim_{sheet}"
-        )
-
-    df_f = df[
-        df["Periode"].isin(per) &
-        df["KUR/PEN"].isin(kp) &
-        df["Dimensi"].isin(dim)
-    ]
-
-    if df_f.empty:
-        st.warning("Data kosong setelah filter")
-        continue
-
-    # ===============================
-    # AGREGASI METRICS
-    # ===============================
-    df_agg = (
-        df_f.groupby("Metrics", as_index=False)
-        .agg(Total_Value=("Value", "sum"))
+for m in df_non_debitur[col_metrics].unique():
+    d = df_non_debitur[df_non_debitur[col_metrics] == m]
+    fig.add_bar(
+        x=d[col_kategori],
+        y=d["Total"],
+        name=m,
+        yaxis="y1"
     )
 
-    df_agg["Total_T"] = df_agg["Total_Value"] / 1_000_000_000_000
-
-    # ===============================
-    # GRAFIK BATANG (TRILIUN)
-    # ===============================
-    fig = px.bar(
-        df_agg,
-        x="Metrics",
-        y="Total_T",
-        text="Total_T",
-        title=f"📊 Summary Metrics berdasarkan {dimensi_label}"
+for m in df_debitur[col_metrics].unique():
+    d = df_debitur[df_debitur[col_metrics] == m]
+    fig.add_scatter(
+        x=d[col_kategori],
+        y=d["Total"],
+        name=m,
+        yaxis="y2",
+        mode="lines+markers",
+        marker=dict(size=8)
     )
 
-    fig.update_traces(
-        texttemplate="%{text:,.2f} T",
-        textposition="outside"
+fig.update_layout(
+    title=f"📊 Fokus Jumlah Debitur vs Metrics Lain ({selected_sheet})",
+    xaxis_title=col_kategori,
+    yaxis=dict(
+        title="Nilai OS / Metrics Lain (Rp / T)",
+        showgrid=True
+    ),
+    yaxis2=dict(
+        title="Jumlah Debitur",
+        overlaying="y",
+        side="right",
+        showgrid=False
+    ),
+    barmode="group",
+    height=600
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# ===============================
+# PLOT TAMBAHAN: JUMLAH DEBITUR SAJA
+# ===============================
+st.subheader("📊 Jumlah Debitur per Kategori")
+
+fig2 = go.Figure()
+
+fig2.add_bar(
+    x=df_debitur[col_kategori],
+    y=df_debitur["Total"],
+    name="Jumlah Debitur"
+)
+
+fig2.update_layout(
+    title="Jumlah Debitur",
+    xaxis_title=col_kategori,
+    yaxis_title="Jumlah Debitur",
+    height=450
+)
+
+st.plotly_chart(fig2, use_container_width=True)
+
+# ===============================
+# PREVIEW DATA (FORMAT KHUSUS)
+# ===============================
+with st.expander("👀 Preview Data (Klik untuk tampil / sembunyi)", expanded=False):
+
+    df_preview = df_f.copy()
+
+    def format_row(row):
+        if "debitur" in str(row[col_metrics]).lower():
+            return f"{int(row[col_value]):,}"
+        return f"Rp {row[col_value]:,.2f}"
+
+    df_preview["Formatted Value"] = df_preview.apply(format_row, axis=1)
+
+    st.dataframe(
+        df_preview.drop(columns=[col_value]),
+        use_container_width=True
     )
 
-    fig.update_layout(
-        yaxis_title="Nilai Finansial (Triliun)",
-        xaxis_title="Metrics"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    # ===============================
-    # GRAFIK DUAL AXIS (FOKUS DEBITUR)
-    # ===============================
-    df_agg["Jenis"] = df_agg["Metrics"].apply(
-        lambda x: "Debitur" if "debitur" in str(x).lower() else "Finansial"
-    )
-
-    df_agg["Value_T"] = df_agg.apply(
-        lambda r: r["Total_T"] if r["Jenis"] == "Finansial" else None,
-        axis=1
-    )
-
-    df_agg["Value_Debitur"] = df_agg.apply(
-        lambda r: r["Total_Value"] if r["Jenis"] == "Debitur" else None,
-        axis=1
-    )
-
-    fig2 = go.Figure()
-
-    fig2.add_bar(
-        x=df_agg["Metrics"],
-        y=df_agg["Value_T"],
-        name="Nilai Finansial (Triliun)",
-        yaxis="y"
-    )
-
-    fig2.add_bar(
-        x=df_agg["Metrics"],
-        y=df_agg["Value_Debitur"],
-        name="Jumlah Debitur",
-        yaxis="y2"
-    )
-
-    fig2.update_layout(
-        title=f"📊 Metrics vs Jumlah Debitur berdasarkan {dimensi_label}",
-        barmode="group",
-        yaxis=dict(title="Triliun Rupiah"),
-        yaxis2=dict(
-            title="Jumlah Debitur",
-            overlaying="y",
-            side="right"
-        )
-    )
-
-    st.plotly_chart(fig2, use_container_width=True)
+# ===============================
+# INFO
+# ===============================
+st.markdown("### ℹ️ Info Data")
+st.write("Jumlah baris:", len(df_f))
+st.write("Kategori otomatis:", col_kategori)
 
 
 #==========================================================================================================================
