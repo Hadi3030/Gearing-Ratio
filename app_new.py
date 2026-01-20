@@ -601,7 +601,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Dashboard KUR & PEN (Auto Structural Sheet)")
+st.title("📊 Dashboard Summary Outstanding Penjamin")
 
 # ===============================
 # UPLOAD FILE
@@ -661,7 +661,7 @@ def parse_value(val):
 for sheet in sheet_names:
 
     st.divider()
-    st.header(f"📘 Sheet: {sheet}")
+    st.header(f"📘 by {sheet}")
 
     df_raw = load_data(uploaded_file, sheet if sheet != "CSV" else None)
 
