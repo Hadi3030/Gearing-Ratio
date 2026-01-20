@@ -917,7 +917,7 @@ for sheet in sheet_names:
         df_bank = df_f.copy()
     
         # Pastikan data valid
-        df_bank = df_bak.dropna(subset=["Dimensi", "Value"])
+        df_bank = df_bank.dropna(subset=["Dimensi", "Value"])
     
         if df_bank.empty:
             st.warning("Data Jenis Kredit kosong setelah filter")
