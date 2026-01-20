@@ -956,53 +956,63 @@ for sheet in sheet_names:
             st.plotly_chart(fig_bank, use_container_width=True) 
 
     # ===============================
-    # KHUSUS SHEET City
-    # PLOT VALUE vs City
+    # KHUSUS SHEET KOTA
+    # PLOT VALUE vs KOTA
     # ===============================
-    if "city" in sheet.lower():
+    sheet_norm = sheet.lower().strip()
     
-        st.subheader("📊 Distribusi Nilai berdasarkan City")
+    if "kota" in sheet_norm:
     
-        df_city = df_f.copy()
+        st.subheader("📊 Distribusi Nilai berdasarkan Kota")
     
-        # Pastikan data valid
-        df_city = df_city.dropna(subset=["Dimensi", "Value"])
+        df_kota = df_f.copy()
     
-        if df_city.empty:
-            st.warning("Data Jenis Kredit kosong setelah filter")
+        # Bersihkan kolom Dimensi (Kota)
+        df_kota["Dimensi"] = df_kota["Dimensi"].astype(str).str.strip()
+    
+        df_kota = df_kota[
+            (df_kota["Dimensi"] != "") &
+            (df_kota["Dimensi"].str.lower() != "nan")
+        ]
+    
+        df_kota = df_kota.dropna(subset=["Value"])
+    
+        if df_kota.empty:
+            st.warning("⚠️ Data Kota kosong setelah filter")
         else:
-            # Agregasi per Jenis Kredit
-            df_city_agg = (
-                df_city
+            # Agregasi per Kota
+            df_kota_agg = (
+                df_kota
                 .groupby("Dimensi", as_index=False)
                 .agg(Total_Value=("Value", "sum"))
-                .sort_values("Dimensi")
+                .sort_values("Total_Value", ascending=False)
             )
     
-            fig_city = px.bar(
-                df_city_agg,
+            fig_kota = px.bar(
+                df_kota_agg,
                 x="Dimensi",
                 y="Total_Value",
                 text="Total_Value",
                 labels={
-                    "Dimensi": "City",
+                    "Dimensi": "Kota",
                     "Total_Value": "Nilai"
                 }
             )
     
-            fig_city.update_traces(
+            fig_kota.update_traces(
                 texttemplate="%{text:,.2f}",
                 textposition="outside"
             )
     
-            fig_city.update_layout(
-                xaxis_title="City",
+            fig_kota.update_layout(
+                xaxis_title="Kota",
                 yaxis_title="Nilai (Rupiah)",
-                title="📊 Total Nilai berdasarkan City",
-                height=450
+                title="📊 Total Nilai berdasarkan Kota",
+                height=500
             )
     
-            st.plotly_chart(fig_city, use_container_width=True) 
+            st.plotly_chart(fig_kota, use_container_width=True)
+
     
 
     # ===============================
