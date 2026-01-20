@@ -905,7 +905,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Dashboard Summary KUR & PEN (Multi Sheet)")
+st.title("📊 Dashboard KUR & PEN (Auto Structural Sheet)")
 
 # ===============================
 # UPLOAD FILE
@@ -922,11 +922,12 @@ if uploaded_file is None:
 # ===============================
 # GET SHEET NAMES
 # ===============================
-sheet_names = []
 if uploaded_file.name.endswith(".xlsx"):
     sheet_names = pd.ExcelFile(uploaded_file).sheet_names
+else:
+    sheet_names = ["CSV"]
 
-# Kecualikan sheet Proyeksi
+# Skip sheet Proyeksi
 sheet_names = [s for s in sheet_names if s.lower() != "proyeksi"]
 
 # ===============================
@@ -966,27 +967,46 @@ for sheet in sheet_names:
     st.divider()
     st.header(f"📘 Sheet: {sheet}")
 
-    df = load_data(uploaded_file, sheet)
+    df_raw = load_data(uploaded_file, sheet if sheet != "CSV" else None)
 
-    if df.empty:
+    if df_raw.empty:
         st.warning("Sheet kosong")
         continue
 
     # ===============================
-    # NORMALISASI KOLOM KE-3 → Jenis
+    # VALIDASI STRUKTUR MINIMAL
     # ===============================
-    cols = list(df.columns)
+    cols = list(df_raw.columns)
+
     if len(cols) < 5:
-        st.error("Struktur kolom tidak sesuai")
+        st.warning("Struktur kolom tidak memenuhi standar → dilewati")
         continue
 
-    df = df.rename(columns={cols[2]: "Jenis"})
+    # ===============================
+    # MAPPING BERDASARKAN POSISI KOLOM
+    # ===============================
+    COL_PERIODE = cols[0]
+    COL_KURPEN = cols[1]
+    COL_DIMENSI = cols[2]   # <<< KUNCI UTAMA
+    COL_METRICS = "Metrics"
+    COL_VALUE = "Value"
+
+    dimensi_label = COL_DIMENSI  # Untuk UI
+
+    df = df_raw.rename(columns={
+        COL_PERIODE: "Periode",
+        COL_KURPEN: "KUR/PEN",
+        COL_DIMENSI: "Dimensi"
+    })
 
     # ===============================
     # CLEAN VALUE
     # ===============================
     if "Value" in df.columns:
         df["Value"] = df["Value"].apply(parse_value)
+    else:
+        st.warning("Kolom Value tidak ditemukan")
+        continue
 
     # ===============================
     # PREVIEW DATA
@@ -994,7 +1014,7 @@ for sheet in sheet_names:
     with st.expander("👀 Preview Data", expanded=False):
         df_prev = df.copy()
 
-        if "Metrics" in df_prev.columns and "Value" in df_prev.columns:
+        if "Metrics" in df_prev.columns:
             def fmt(row):
                 if "debitur" in str(row["Metrics"]).lower():
                     return f"{row['Value']:,.0f}" if pd.notna(row["Value"]) else ""
@@ -1005,7 +1025,7 @@ for sheet in sheet_names:
         st.dataframe(df_prev, use_container_width=True)
 
     # ===============================
-    # FILTER PER SHEET
+    # FILTER (STRUKTURAL)
     # ===============================
     c1, c2, c3 = st.columns(3)
 
@@ -1013,28 +1033,30 @@ for sheet in sheet_names:
         per = st.multiselect(
             "📅 Periode",
             sorted(df["Periode"].dropna().unique()),
-            default=df["Periode"].dropna().unique(),
+            default=sorted(df["Periode"].dropna().unique()),
             key=f"per_{sheet}"
         )
+
     with c2:
         kp = st.multiselect(
             "🏦 KUR / PEN",
             sorted(df["KUR/PEN"].dropna().unique()),
-            default=df["KUR/PEN"].dropna().unique(),
+            default=sorted(df["KUR/PEN"].dropna().unique()),
             key=f"kp_{sheet}"
         )
+
     with c3:
-        gen = st.multiselect(
-            "🧬 Generasi",
-            sorted(df["Generasi"].dropna().unique()),
-            default=df["Generasi"].dropna().unique(),
-            key=f"gen_{sheet}"
+        dim = st.multiselect(
+            f"🏷️ {dimensi_label}",
+            sorted(df["Dimensi"].dropna().unique()),
+            default=sorted(df["Dimensi"].dropna().unique()),
+            key=f"dim_{sheet}"
         )
 
     df_f = df[
         df["Periode"].isin(per) &
         df["KUR/PEN"].isin(kp) &
-        df["Generasi"].isin(gen)
+        df["Dimensi"].isin(dim)
     ]
 
     if df_f.empty:
@@ -1042,12 +1064,13 @@ for sheet in sheet_names:
         continue
 
     # ===============================
-    # AGREGASI
+    # AGREGASI METRICS
     # ===============================
     df_agg = (
         df_f.groupby("Metrics", as_index=False)
         .agg(Total_Value=("Value", "sum"))
     )
+
     df_agg["Total_T"] = df_agg["Total_Value"] / 1_000_000_000_000
 
     # ===============================
@@ -1058,16 +1081,23 @@ for sheet in sheet_names:
         x="Metrics",
         y="Total_T",
         text="Total_T",
-        title="📊 Summary Metrics (Triliun)"
+        title=f"📊 Summary Metrics berdasarkan {dimensi_label}"
     )
 
-    fig.update_traces(texttemplate="%{text:,.2f} T", textposition="outside")
-    fig.update_layout(yaxis_title="Triliun Rupiah")
+    fig.update_traces(
+        texttemplate="%{text:,.2f} T",
+        textposition="outside"
+    )
+
+    fig.update_layout(
+        yaxis_title="Nilai Finansial (Triliun)",
+        xaxis_title="Metrics"
+    )
 
     st.plotly_chart(fig, use_container_width=True)
 
     # ===============================
-    # GRAFIK DUAL AXIS
+    # GRAFIK DUAL AXIS (FOKUS DEBITUR)
     # ===============================
     df_agg["Jenis"] = df_agg["Metrics"].apply(
         lambda x: "Debitur" if "debitur" in str(x).lower() else "Finansial"
@@ -1077,29 +1107,30 @@ for sheet in sheet_names:
         lambda r: r["Total_T"] if r["Jenis"] == "Finansial" else None,
         axis=1
     )
+
     df_agg["Value_Debitur"] = df_agg.apply(
         lambda r: r["Total_Value"] if r["Jenis"] == "Debitur" else None,
         axis=1
     )
 
-    fig = go.Figure()
+    fig2 = go.Figure()
 
-    fig.add_bar(
+    fig2.add_bar(
         x=df_agg["Metrics"],
         y=df_agg["Value_T"],
-        name="Nilai Finansial (T)",
+        name="Nilai Finansial (Triliun)",
         yaxis="y"
     )
 
-    fig.add_bar(
+    fig2.add_bar(
         x=df_agg["Metrics"],
         y=df_agg["Value_Debitur"],
         name="Jumlah Debitur",
         yaxis="y2"
     )
 
-    fig.update_layout(
-        title="📊 Metrics vs Jumlah Debitur (Dual Axis)",
+    fig2.update_layout(
+        title=f"📊 Metrics vs Jumlah Debitur berdasarkan {dimensi_label}",
         barmode="group",
         yaxis=dict(title="Triliun Rupiah"),
         yaxis2=dict(
@@ -1109,7 +1140,7 @@ for sheet in sheet_names:
         )
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig2, use_container_width=True)
 
 #==========================================================================================================================
 # ===============================
