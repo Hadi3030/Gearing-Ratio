@@ -787,6 +787,45 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+#=+======Untuk Memperjelas Jumblah Debitur ================================
+# ===============================
+# GRAFIK BATANG
+# ===============================
+df_agg1 = (
+    df_f
+    .groupby("Metrics", as_index=False)
+    .agg(Total_Value=("Value", "sum"))
+)
+# df_agg1["Total_T"] = df_agg1["Total_Value"] / 1_000_000_000_000
+
+import plotly.express as px
+
+st.subheader("Jumblah Debitur")
+
+fig = px.bar(
+    df_agg1,
+    x="Metrics",
+    y="Total_T",
+    text="Total_T",
+    labels={
+        "Metrics": "Metrics",
+        "Total_T": "Total (Triliun)"
+    }
+)
+
+fig.update_traces(
+    texttemplate="%{text:,.2f} T",
+    textposition="outside"
+)
+
+fig.update_layout(
+    yaxis_title="Total (Triliun)",
+    xaxis_title="Metrics",
+    uniformtext_minsize=10,
+    uniformtext_mode="hide"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 # ===============================
 # TABEL RINGKAS
