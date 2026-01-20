@@ -856,6 +856,53 @@ for sheet in sheet_names:
         )
     
         st.plotly_chart(fig_polis, use_container_width=True)
+
+    # ===============================
+    # KHUSUS SHEET JENIS Kredit (KUR)
+    # PLOT VALUE vs JENIS Kredit (KUR)
+    # ===============================
+    if sheet.lower() == "Jenis Kredit (KUR)":
+    
+        st.subheader("📊 Distribusi Nilai berdasarkan Jenis Kredit KUR")
+    
+        df_kredit = df_f.copy()
+    
+        # Pastikan data valid
+        df_kredit = df_kredit.dropna(subset=["Dimensi", "Value"])
+    
+        # Agregasi per Jenis Polis (SPR, NEW, dll)
+        df_polis_agg = (
+            df_kredit
+            .groupby("Dimensi", as_index=False)
+            .agg(Total_Value=("Value", "sum"))
+            .sort_values("Dimensi")
+        )
+    
+        fig_kredit = px.bar(
+            df_kredit_agg,
+            x="Dimensi",
+            y="Total_Value",
+            text="Total_Value",
+            labels={
+                "Dimensi": "Jenis Kredit (KUR)",
+                "Total_Value": "Nilai"
+            }
+        )
+    
+        fig_kredit.update_traces(
+            texttemplate="%{text:,.2f}",
+            textposition="outside"
+        )
+    
+        fig_kredit.update_layout(
+            xaxis_title="Jenis Polis",
+            yaxis_title="Nilai (Rupiah)",
+            title="📊 Total Nilai berdasarkan Jenis Kredit (KUR)",
+            height=450
+        )
+    
+        st.plotly_chart(fig_polis, use_container_width=True)
+    
     
 
     # ===============================
