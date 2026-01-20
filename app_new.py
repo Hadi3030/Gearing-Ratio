@@ -761,13 +761,37 @@ for sheet in sheet_names:
 #=============================================================================
     # ===============================
     # KHUSUS SHEET PROYEKSI
-    # OS GROSS & OS NET
+    # OS GROSS & OS NET + FILTER TENOR
     # ===============================
     if sheet.lower() == "proyeksi":
     
         st.subheader("📊 Proyeksi Outstanding")
     
-        col_dim = "Dimensi"     # OS Gross / OS Net
+        # ===============================
+        # AMBIL KOLOM TENOR (KOLOM KE-4)
+        # ===============================
+        TENOR_COL = df_raw.columns[3]
+        df_f["Tenor"] = df_raw[TENOR_COL]
+    
+        # ===============================
+        # FILTER TENOR (UI)
+        # ===============================
+        tenor_list = sorted(df_f["Tenor"].dropna().unique())
+    
+        selected_tenor = st.multiselect(
+            "⏳ Pilih Tenor",
+            tenor_list,
+            default=tenor_list,
+            key="tenor_proyeksi"
+        )
+    
+        df_f = df_f[df_f["Tenor"].isin(selected_tenor)]
+    
+        if df_f.empty:
+            st.warning("Data kosong setelah filter Tenor")
+            continue
+    
+        col_dim = "Dimensi"
         col_per = "Periode"
         col_val = "Value"
     
@@ -810,12 +834,12 @@ for sheet in sheet_names:
             st.plotly_chart(fig_gross, use_container_width=True)
     
         # ===============================
-        # OS NETT
+        # OS NET
         # ===============================
-        st.markdown("### 🔹 OS Nett")
+        st.markdown("### 🔹 OS Net")
     
         df_net = df_f[
-            df_f[col_dim].str.lower() == "os nett"
+            df_f[col_dim].str.lower() == "os net"
         ].dropna(subset=[col_val])
     
         if df_net.empty:
@@ -832,7 +856,7 @@ for sheet in sheet_names:
                 x=col_per,
                 y="Total_Value",
                 text="Total_Value",
-                title="📊 Proyeksi OS Nett"
+                title="📊 Proyeksi OS Net"
             )
     
             fig_net.update_traces(
@@ -847,8 +871,7 @@ for sheet in sheet_names:
     
             st.plotly_chart(fig_net, use_container_width=True)
     
-        continue   # ⬅️ penting: skip grafik generik di bawah
-
+        continue  # ⬅️ PENTING
 
     # ===============================
     # KHUSUS SHEET TENOR
