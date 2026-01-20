@@ -683,14 +683,39 @@ if "Value" in df1.columns:
 # ===============================
 # PREVIEW DATA
 # ===============================
+# with st.expander("👀 Preview Data (Klik untuk tampil / sembunyi)", expanded=False):
+#     if "Value" in df1.columns:
+#         st.dataframe(
+#             df1.style.format({"Value": "Rp {:,.2f}"}),
+#             use_container_width=True
+#         )
+#     else:
+#         st.dataframe(df1, use_container_width=True)
+# ===============================
+# PREVIEW DATA (FORMAT KONDISIONAL)
+# ===============================
 with st.expander("👀 Preview Data (Klik untuk tampil / sembunyi)", expanded=False):
-    if "Value" in df1.columns:
+
+    df_preview = df1.copy()
+
+    if "Value" in df_preview.columns and "Metrics" in df_preview.columns:
+
+        def format_value(row):
+            if "debitur" in str(row["Metrics"]).lower():
+                return f'{row["Value"]:,.0f}' if pd.notna(row["Value"]) else ""
+            else:
+                return f'Rp {row["Value"]:,.2f}' if pd.notna(row["Value"]) else ""
+
+        df_preview["Value"] = df_preview.apply(format_value, axis=1)
+
         st.dataframe(
-            df1.style.format({"Value": "Rp {:,.2f}"}),
+            df_preview,
             use_container_width=True
         )
+
     else:
-        st.dataframe(df1, use_container_width=True)
+        st.dataframe(df_preview, use_container_width=True)
+
 
 # ===============================
 # INFO DATA
