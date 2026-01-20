@@ -760,6 +760,58 @@ for sheet in sheet_names:
         continue
 
     # ===============================
+    # KHUSUS SHEET TENOR
+    # PLOT VALUE vs TENOR
+    # ===============================
+    if sheet.lower() == "tenor":
+    
+        st.subheader("📊 Distribusi Nilai berdasarkan Tenor")
+    
+        # Pastikan tenor numerik & urut
+        df_tenor = df_f.copy()
+        df_tenor["Dimensi"] = pd.to_numeric(df_tenor["Dimensi"], errors="coerce")
+    
+        df_tenor = df_tenor.dropna(subset=["Dimensi", "Value"])
+    
+        # Agregasi per tenor
+        df_tenor_agg = (
+            df_tenor
+            .groupby("Dimensi", as_index=False)
+            .agg(Total_Value=("Value", "sum"))
+            .sort_values("Dimensi")
+        )
+    
+        fig_tenor = px.bar(
+            df_tenor_agg,
+            x="Dimensi",
+            y="Total_Value",
+            text="Total_Value",
+            labels={
+                "Dimensi": "Tenor (Tahun)",
+                "Total_Value": "Nilai"
+            }
+        )
+    
+        fig_tenor.update_traces(
+            texttemplate="%{text:,.2f}",
+            textposition="outside"
+        )
+    
+        fig_tenor.update_layout(
+            xaxis=dict(
+                tickmode="linear",
+                tick0=1,
+                dtick=1
+            ),
+            yaxis_title="Nilai (Rupiah)",
+            title="📊 Total Nilai per Tenor",
+            height=450
+        )
+    
+        st.plotly_chart(fig_tenor, use_container_width=True)
+    
+
+    # ===============================
     # AGREGASI METRICS
     # ===============================
     df_agg = (
