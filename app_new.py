@@ -765,8 +765,6 @@ for sheet in sheet_names:
     # ===============================
     if sheet.lower() == "proyeksi":
     
-        st.subheader("📊 Proyeksi Outstanding")
-    
         # ===============================
         # AMBIL KOLOM TENOR (KOLOM KE-4)
         # ===============================
@@ -798,7 +796,7 @@ for sheet in sheet_names:
         # ===============================
         # OS GROSS
         # ===============================
-        st.markdown("### 🔹 OS Gross")
+        # st.markdown("### 🔹 OS Gross")
     
         df_gross = df_f[
             df_f[col_dim].str.lower() == "os gross"
@@ -836,7 +834,7 @@ for sheet in sheet_names:
         # ===============================
         # OS NETT
         # ===============================
-        st.markdown("### 🔹 OS Nett")
+        # st.markdown("### 🔹 OS Nett")
     
         df_net = df_f[
             df_f[col_dim].str.lower() == "os nett"
@@ -877,10 +875,7 @@ for sheet in sheet_names:
     # KHUSUS SHEET TENOR
     # PLOT VALUE vs TENOR
     # ===============================
-    if sheet.lower() == "tenor":
-    
-        st.subheader("📊 Distribusi Nilai berdasarkan Tenor")
-    
+    if sheet.lower() == "tenor":   
         # Pastikan tenor numerik & urut
         df_tenor = df_f.copy()
         df_tenor["Dimensi"] = pd.to_numeric(df_tenor["Dimensi"], errors="coerce")
@@ -929,15 +924,10 @@ for sheet in sheet_names:
     # KHUSUS SHEET JENIS POLIS
     # PLOT VALUE vs JENIS POLIS
     # ===============================
-    if sheet.lower() == "jenis polis":
-    
-        st.subheader("📊 Distribusi Nilai berdasarkan Jenis Polis")
-    
+    if sheet.lower() == "jenis polis":    
         df_polis = df_f.copy()
-    
         # Pastikan data valid
         df_polis = df_polis.dropna(subset=["Dimensi", "Value"])
-    
         # Agregasi per Jenis Polis (SPR, NEW, dll)
         df_polis_agg = (
             df_polis
@@ -975,10 +965,7 @@ for sheet in sheet_names:
     # KHUSUS SHEET JENIS KREDIT (KUR)
     # PLOT VALUE vs JENIS KREDIT
     # ===============================
-    if "jenis kredit" in sheet.lower():
-    
-        st.subheader("📊 Distribusi Nilai berdasarkan Jenis Kredit KUR")
-    
+    if "jenis kredit" in sheet.lower():    
         df_kredit = df_f.copy()
     
         # Pastikan data valid
@@ -1024,10 +1011,7 @@ for sheet in sheet_names:
     # KHUSUS SHEET BANK
     # PLOT VALUE vs BANK
     # ===============================
-    if "bank" in sheet.lower():
-    
-        st.subheader("📊 Distribusi Nilai berdasarkan Bank")
-    
+    if "bank" in sheet.lower():    
         df_bank = df_f.copy()
     
         # Pastikan data valid
@@ -1075,10 +1059,7 @@ for sheet in sheet_names:
     # ===============================
     sheet_norm = sheet.lower().strip()
     
-    if "kota" in sheet_norm:
-    
-        st.subheader("📊 Distribusi Nilai berdasarkan Kota")
-    
+    if "kota" in sheet_norm:    
         df_kota = df_f.copy()
     
         # Bersihkan kolom Dimensi (Kota)
