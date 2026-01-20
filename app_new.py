@@ -906,7 +906,54 @@ for sheet in sheet_names:
     
             st.plotly_chart(fig_kredit, use_container_width=True)
 
+    # ===============================
+    # KHUSUS SHEET JENIS KREDIT (KUR)
+    # PLOT VALUE vs JENIS KREDIT
+    # ===============================
+    if "bank" in sheet.lower():
     
+        st.subheader("📊 Distribusi Nilai berdasarkan Bank")
+    
+        df_bank = df_f.copy()
+    
+        # Pastikan data valid
+        df_bank = df_bak.dropna(subset=["Dimensi", "Value"])
+    
+        if df_bank.empty:
+            st.warning("Data Jenis Kredit kosong setelah filter")
+        else:
+            # Agregasi per Jenis Kredit
+            df_bank_agg = (
+                df_bank
+                .groupby("Dimensi", as_index=False)
+                .agg(Total_Value=("Value", "sum"))
+                .sort_values("Dimensi")
+            )
+    
+            fig_bank = px.bar(
+                df_bank_agg,
+                x="Dimensi",
+                y="Total_Value",
+                text="Total_Value",
+                labels={
+                    "Dimensi": "Bank",
+                    "Total_Value": "Nilai"
+                }
+            )
+    
+            fig_bank.update_traces(
+                texttemplate="%{text:,.2f}",
+                textposition="outside"
+            )
+    
+            fig_bank.update_layout(
+                xaxis_title="Bank",
+                yaxis_title="Nilai (Rupiah)",
+                title="📊 Total Nilai berdasarkan BANK",
+                height=450
+            )
+    
+            st.plotly_chart(fig_bank, use_container_width=True) 
     
 
     # ===============================
