@@ -907,8 +907,8 @@ for sheet in sheet_names:
             st.plotly_chart(fig_kredit, use_container_width=True)
 
     # ===============================
-    # KHUSUS SHEET JENIS KREDIT (KUR)
-    # PLOT VALUE vs JENIS KREDIT
+    # KHUSUS SHEET BANK
+    # PLOT VALUE vs BANK
     # ===============================
     if "bank" in sheet.lower():
     
@@ -954,6 +954,55 @@ for sheet in sheet_names:
             )
     
             st.plotly_chart(fig_bank, use_container_width=True) 
+
+    # ===============================
+    # KHUSUS SHEET City
+    # PLOT VALUE vs City
+    # ===============================
+    if "city" in sheet.lower():
+    
+        st.subheader("📊 Distribusi Nilai berdasarkan City")
+    
+        df_city = df_f.copy()
+    
+        # Pastikan data valid
+        df_city = df_city.dropna(subset=["Dimensi", "Value"])
+    
+        if df_city.empty:
+            st.warning("Data Jenis Kredit kosong setelah filter")
+        else:
+            # Agregasi per Jenis Kredit
+            df_city_agg = (
+                df_city
+                .groupby("Dimensi", as_index=False)
+                .agg(Total_Value=("Value", "sum"))
+                .sort_values("Dimensi")
+            )
+    
+            fig_city = px.bar(
+                df_city_agg,
+                x="Dimensi",
+                y="Total_Value",
+                text="Total_Value",
+                labels={
+                    "Dimensi": "City",
+                    "Total_Value": "Nilai"
+                }
+            )
+    
+            fig_city.update_traces(
+                texttemplate="%{text:,.2f}",
+                textposition="outside"
+            )
+    
+            fig_city.update_layout(
+                xaxis_title="City",
+                yaxis_title="Nilai (Rupiah)",
+                title="📊 Total Nilai berdasarkan City",
+                height=450
+            )
+    
+            st.plotly_chart(fig_city, use_container_width=True) 
     
 
     # ===============================
