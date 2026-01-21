@@ -1,85 +1,88 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import re
 
-# ===============================
-# PAGE CONFIG
-# ===============================
-st.set_page_config(
-    page_title="Dashboard KUR & PEN",
-    layout="wide"
-)
-
-# ===============================
-# HEADER
-# ===============================
-col_logo, col_title = st.columns([1, 8])
-
-with col_logo:
-    st.image("gambar/OIP.jpg", width=90)
-
-with col_title:
-    st.markdown(
-        """
-        <h1 style="margin-bottom:0; color:#1f4e79;">
-            Dashboard Gearing Ratio KUR & PEN
-        </h1>
-        <p style="margin-top:0; font-size:16px; color:gray;">
-            Analisis Outstanding, Ekuitas, dan Trend Gearing Ratio berbasis data periodik
-        </p>
-        """,
-        unsafe_allow_html=True
+def bagian_1_proyeksi():
+    import plotly.express as px
+    import re
+    
+    # ===============================
+    # CONFIG
+    # ===============================
+    st.set_page_config(
+        page_title="Dashboard",
+        layout="wide"
     )
-
-# =====================================================
-# ✅ DUA UPLOAD FILE LANGSUNG DI ATAS
-# =====================================================
-st.subheader("📥 Upload Data")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    uploaded_file_gearing = st.file_uploader(
-        "📊 Upload File Gearing Ratio (CSV / XLSX)",
+    # ===============================
+    # HEADER DENGAN LOGO
+    # ===============================
+    col_logo, col_title = st.columns([1, 8])
+    
+    with col_logo:
+        st.image("gambar/OIP.jpg", width=90)
+    
+    with col_title:
+        st.markdown(
+            """
+            <h1 style="margin-bottom:0; color:#1f4e79;">
+                Dashboard Gearing Ratio KUR & PEN
+            </h1>
+            <p style="margin-top:0; font-size:16px; color:gray;">
+                Analisis Outstanding, Ekuitas, dan Trend Gearing Ratio berbasis data periodik
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+    
+    st.info("Website ini akan otomatis menampilkan dashboard untuk perhitungan Trend Gearing Ratio setelah anda mengupload file dengan format xlxs atau csv, dan pastikan format tabel yang akan diinput sesuai dengan contoh")
+    # Tampilkan gambar contoh format Excel
+    st.image(
+        "gambar/ssXlsx.png",
+        caption="Contoh format file Excel (.xlsx) yang didukung",
+        use_container_width=True
+    )
+    st.title("📊 Summary Tend Gearing Ratio")
+    
+    # ===============================
+    # UPLOAD FILE
+    # ===============================
+    uploaded_file = st.file_uploader(
+        "📥 Upload file Excel / CSV",
         type=["csv", "xlsx"],
-        key="upload_gearing"
+        key="upload_Gearing"
     )
-
-with col2:
-    uploaded_file_penjamin = st.file_uploader(
-        "🏦 Upload File Outstanding Penjamin (CSV / XLSX)",
-        type=["csv", "xlsx"],
-        key="upload_penjamin"
-    )
-
-st.divider()
-
-# =====================================================
-# ================== BAGIAN 1 =========================
-# ===== SUMMARY TREND GEARING RATIO ===================
-# =====================================================
-if uploaded_file_gearing is not None:
-
-    st.title("📊 Summary Trend Gearing Ratio")
-
+    
+    if uploaded_file is None:
+        st.info("Silakan upload file terlebih dahulu")
+        st.stop()
+    
+    # ===============================
+    # LOAD DATA
+    # ===============================
     @st.cache_data
     def load_data(file):
         if file.name.endswith(".csv"):
             return pd.read_csv(file)
         return pd.read_excel(file)
-
-    df = load_data(uploaded_file_gearing)
-
+    
+    df = load_data(uploaded_file)
+    
+    # ===============================
+    # VALIDASI KOLOM
+    # ===============================
     required_cols = ["Periode", "Value"]
     for col in required_cols:
         if col not in df.columns:
             st.error(f"❌ Kolom '{col}' tidak ditemukan")
             st.stop()
-
+    
+    # ===============================
+    # SIMPAN PERIODE ASLI
+    # ===============================
     df["Periode_Raw"] = df["Periode"].astype(str)
-
+    
+    # ===============================
+    # PARSING PERIODE
+    # ===============================
     bulan_map = {
         "jan": 1, "feb": 2, "mar": 3, "apr": 4,
         "may": 5, "mei": 5, "jun": 6, "jul": 7,
@@ -87,14 +90,14 @@ if uploaded_file_gearing is not None:
         "oct": 10, "okt": 10,
         "nov": 11, "dec": 12
     }
-
+    
     def parse_periode(val):
         try:
             dt = pd.to_datetime(val)
             return dt.year, dt.month
         except:
             pass
-
+    
         text = str(val).lower()
         for b, m in bulan_map.items():
             if b in text:
@@ -105,67 +108,90 @@ if uploaded_file_gearing is not None:
                         y += 2000
                     return y, m
         return None, None
-
+    
     df[["Year", "Month"]] = df["Periode_Raw"].apply(
         lambda x: pd.Series(parse_periode(x))
     )
-
+    
     df = df.dropna(subset=["Year", "Month"])
     df["SortKey"] = df["Year"] * 100 + df["Month"]
-
+    
+    # ===============================
+    # LABEL BULAN
+    # ===============================
     bulan_id = {
         1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
         5: "Mei", 6: "Jun", 7: "Jul", 8: "Agu",
         9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
     }
-
+    
     df["Periode_Label"] = (
         df["Month"].map(bulan_id) + " " + df["Year"].astype(int).astype(str)
     )
-
+    
+    # ===============================
+    # FLAG AUDITED (PRIORITAS)
+    # ===============================
     df["Is_Audited"] = df["Periode_Raw"].str.contains(
         "audit", case=False, na=False
     ).astype(int)
-
+    
+    # ===============================
+    # CLEAN VALUE (AMAN FORMAT INDONESIA)
+    # ===============================
     def parse_value(val):
         if pd.isna(val):
             return None
         if isinstance(val, (int, float)):
             return float(val)
-
+    
         text = str(val).strip()
+    
+        # format Indonesia: 516.859.837.493,95
         if "." in text and "," in text:
             text = text.replace(".", "").replace(",", ".")
-        elif "." in text:
+        elif "." in text and "," not in text:
             text = text.replace(".", "")
-
+    
         try:
             return float(text)
         except:
             return None
-
+    
     df["Value"] = df["Value"].apply(parse_value)
-
+    
     # ===============================
     # SIDEBAR FILTER
     # ===============================
     st.sidebar.header("🔎 Filter Data")
-
+    
     df_f = df.copy()
-
+    
+    # ===============================
+    # FILTER TAHUN
+    # ===============================
     available_years = sorted(df_f["Year"].unique())
     selected_years = st.sidebar.multiselect(
-        "Tahun", available_years, default=available_years
+        "Tahun",
+        available_years,
+        default=available_years
     )
+    
     df_f = df_f[df_f["Year"].isin(selected_years)]
-
+    
+    # ===============================
+    # FILTER BULAN
+    # ===============================
     df_f["Bulan_Nama"] = df_f["Month"].map(bulan_id)
+    
     selected_months = st.sidebar.multiselect(
-        "Bulan", list(bulan_id.values()), default=list(bulan_id.values())
+        "Bulan",
+        list(bulan_id.values()),
+        default=list(bulan_id.values())
     )
+    
     df_f = df_f[df_f["Bulan_Nama"].isin(selected_months)]
-
-    # 🔽 SELURUH KODE GEARING RATIO KAMU
+    
     # ===============================
     # PREVIEW DATA (MENTAH - TANPA AGREGASI)
     # ===============================
@@ -560,614 +586,631 @@ if uploaded_file_gearing is not None:
                 "gearing_ratio_kurpen.csv",
                 "text/csv"
             )
-
-else:
-    st.info("⬆️ Silakan upload file Gearing Ratio untuk menampilkan dashboard")
-
-#====================================================================================================================================================================
     
-# =====================================================
-# ================== BAGIAN 2 =========================
-# ===== DASHBOARD OUTSTANDING PENJAMIN ================
-# =====================================================
-if uploaded_file_penjamin is not None:
+    
+    #====================================================================================================================================================================
 
+
+def bagian_2_penjaminan():
+    import plotly.express as px
+    import plotly.graph_objects as go
+    
+    # ===============================
+    # PAGE CONFIG
+    # ===============================
+    st.set_page_config(
+        page_title="Dashboard KUR & PEN",
+        layout="wide"
+    )
+    
     st.title("📊 Dashboard Summary Outstanding Penjamin")
-
+    
+    # ===============================
+    # UPLOAD FILE
+    # ===============================
+    uploaded_file = st.file_uploader(
+        "📥 Upload file Excel / CSV",
+        type=["csv", "xlsx"]
+    )
+    
+    if uploaded_file is None:
+        st.info("Silakan upload file terlebih dahulu")
+        st.stop()
+    
+    # ===============================
+    # GET SHEET NAMES
+    # ===============================
+    if uploaded_file.name.endswith(".xlsx"):
+        sheet_names = pd.ExcelFile(uploaded_file).sheet_names
+    else:
+        sheet_names = ["CSV"]
+    
+    # Skip sheet Proyeksi
+    #sheet_names = [s for s in sheet_names if s.lower() != "proyeksi"]
+    
+    # ===============================
+    # LOAD DATA
+    # ===============================
     @st.cache_data(show_spinner=False)
-    def load_data_penjamin(file, sheet=None):
+    def load_data(file, sheet=None):
         if file.name.endswith(".csv"):
             return pd.read_csv(file)
         return pd.read_excel(file, sheet_name=sheet)
-
-    if uploaded_file_penjamin.name.endswith(".xlsx"):
-        sheet_names = pd.ExcelFile(uploaded_file_penjamin).sheet_names
-    else:
-        sheet_names = ["CSV"]
-
+    
+    # ===============================
+    # PARSE VALUE (FORMAT INDONESIA)
+    # ===============================
+    def parse_value(val):
+        if pd.isna(val):
+            return None
+        if isinstance(val, (int, float)):
+            return float(val)
+    
+        text = str(val).strip()
+        if "." in text and "," in text:
+            text = text.replace(".", "").replace(",", ".")
+        elif "." in text:
+            text = text.replace(".", "")
+    
+        try:
+            return float(text)
+        except:
+            return None
+    
+    # ===============================
+    # LOOP PER SHEET
+    # ===============================
     for sheet in sheet_names:
+    
         st.divider()
         st.header(f"📘 by {sheet}")
-
-        df_raw = load_data_penjamin(
-            uploaded_file_penjamin,
-            sheet if sheet != "CSV" else None
-        )
-
+    
+        df_raw = load_data(uploaded_file, sheet if sheet != "CSV" else None)
+    
         if df_raw.empty:
             st.warning("Sheet kosong")
             continue
-        
+    
         # ===============================
-        # LOAD DATA
+        # VALIDASI STRUKTUR MINIMAL
         # ===============================
-        @st.cache_data(show_spinner=False)
-        def load_data(file, sheet=None):
-            if file.name.endswith(".csv"):
-                return pd.read_csv(file)
-            return pd.read_excel(file, sheet_name=sheet)
-        
+        cols = list(df_raw.columns)
+    
+        if len(cols) < 5:
+            st.warning("Struktur kolom tidak memenuhi standar → dilewati")
+            continue
+    
         # ===============================
-        # PARSE VALUE (FORMAT INDONESIA)
+        # MAPPING BERDASARKAN POSISI KOLOM
         # ===============================
-        def parse_value(val):
-            if pd.isna(val):
-                return None
-            if isinstance(val, (int, float)):
-                return float(val)
-        
-            text = str(val).strip()
-            if "." in text and "," in text:
-                text = text.replace(".", "").replace(",", ".")
-            elif "." in text:
-                text = text.replace(".", "")
-        
-            try:
-                return float(text)
-            except:
-                return None
-        
+        COL_PERIODE = cols[0]
+        COL_KURPEN = cols[1]
+        COL_DIMENSI = cols[2]   # <<< KUNCI UTAMA
+        COL_METRICS = "Metrics"
+        COL_VALUE = "Value"
+    
+        dimensi_label = COL_DIMENSI  # Untuk UI
+    
+        df = df_raw.rename(columns={
+            COL_PERIODE: "Periode",
+            COL_KURPEN: "KUR/PEN",
+            COL_DIMENSI: "Dimensi"
+        })
+    
         # ===============================
-        # LOOP PER SHEET
+        # CLEAN VALUE
         # ===============================
-        
+        if "Value" in df.columns:
+            df["Value"] = df["Value"].apply(parse_value)
+        else:
+            st.warning("Kolom Value tidak ditemukan")
+            continue
+    
+        # ===============================
+        # PREVIEW DATA
+        # ===============================
+        with st.expander("👀 Preview Data", expanded=False):
+            df_prev = df.copy()
+    
+            if "Metrics" in df_prev.columns:
+                def fmt(row):
+                    if "debitur" in str(row["Metrics"]).lower():
+                        return f"{row['Value']:,.0f}" if pd.notna(row["Value"]) else ""
+                    return f"Rp {row['Value']:,.2f}" if pd.notna(row["Value"]) else ""
+    
+                df_prev["Value"] = df_prev.apply(fmt, axis=1)
+    
+            st.dataframe(df_prev, use_container_width=True)
+    
+        # ===============================
+        # FILTER (STRUKTURAL)
+        # ===============================
+        c1, c2, c3 = st.columns(3)
+    
+        with c1:
+            per = st.multiselect(
+                "📅 Periode",
+                sorted(df["Periode"].dropna().unique()),
+                default=sorted(df["Periode"].dropna().unique()),
+                key=f"per_{sheet}"
+            )
+    
+        with c2:
+            kp = st.multiselect(
+                "🏦 KUR / PEN",
+                sorted(df["KUR/PEN"].dropna().unique()),
+                default=sorted(df["KUR/PEN"].dropna().unique()),
+                key=f"kp_{sheet}"
+            )
+    
+        with c3:
+            dim = st.multiselect(
+                f"🏷️ {dimensi_label}",
+                sorted(df["Dimensi"].dropna().unique()),
+                default=sorted(df["Dimensi"].dropna().unique()),
+                key=f"dim_{sheet}"
+            )
+    
+        df_f = df[
+            df["Periode"].isin(per) &
+            df["KUR/PEN"].isin(kp) &
+            df["Dimensi"].isin(dim)
+        ]
+    
+        if df_f.empty:
+            st.warning("Data kosong setelah filter")
+            continue
+    #=============================================================================
+        # ===============================
+        # KHUSUS SHEET PROYEKSI
+        # OS GROSS & OS NET + FILTER TENOR
+        # ===============================
+        if sheet.lower() == "proyeksi":
         
             # ===============================
-            # VALIDASI STRUKTUR MINIMAL
+            # AMBIL KOLOM TENOR (KOLOM KE-4)
             # ===============================
-            cols = list(df_raw.columns)
-        
-            if len(cols) < 5:
-                st.warning("Struktur kolom tidak memenuhi standar → dilewati")
-                continue
+            TENOR_COL = df_raw.columns[3]
+            df_f["Tenor"] = df_raw[TENOR_COL]
         
             # ===============================
-            # MAPPING BERDASARKAN POSISI KOLOM
+            # FILTER TENOR (UI)
             # ===============================
-            COL_PERIODE = cols[0]
-            COL_KURPEN = cols[1]
-            COL_DIMENSI = cols[2]   # <<< KUNCI UTAMA
-            COL_METRICS = "Metrics"
-            COL_VALUE = "Value"
+            tenor_list = sorted(df_f["Tenor"].dropna().unique())
         
-            dimensi_label = COL_DIMENSI  # Untuk UI
+            selected_tenor = st.multiselect(
+                "⏳ Pilih Tenor",
+                tenor_list,
+                default=tenor_list,
+                key="tenor_proyeksi"
+            )
         
-            df = df_raw.rename(columns={
-                COL_PERIODE: "Periode",
-                COL_KURPEN: "KUR/PEN",
-                COL_DIMENSI: "Dimensi"
-            })
-        
-            # ===============================
-            # CLEAN VALUE
-            # ===============================
-            if "Value" in df.columns:
-                df["Value"] = df["Value"].apply(parse_value)
-            else:
-                st.warning("Kolom Value tidak ditemukan")
-                continue
-        
-            # ===============================
-            # PREVIEW DATA
-            # ===============================
-            with st.expander("👀 Preview Data", expanded=False):
-                df_prev = df.copy()
-        
-                if "Metrics" in df_prev.columns:
-                    def fmt(row):
-                        if "debitur" in str(row["Metrics"]).lower():
-                            return f"{row['Value']:,.0f}" if pd.notna(row["Value"]) else ""
-                        return f"Rp {row['Value']:,.2f}" if pd.notna(row["Value"]) else ""
-        
-                    df_prev["Value"] = df_prev.apply(fmt, axis=1)
-        
-                st.dataframe(df_prev, use_container_width=True)
-        
-            # ===============================
-            # FILTER (STRUKTURAL)
-            # ===============================
-            c1, c2, c3 = st.columns(3)
-        
-            with c1:
-                per = st.multiselect(
-                    "📅 Periode",
-                    sorted(df["Periode"].dropna().unique()),
-                    default=sorted(df["Periode"].dropna().unique()),
-                    key=f"per_penjamin_{sheet}"
-                )
-        
-            with c2:
-                kp = st.multiselect(
-                    "🏦 KUR / PEN",
-                    sorted(df["KUR/PEN"].dropna().unique()),
-                    default=sorted(df["KUR/PEN"].dropna().unique()),
-                    key=f"kp_penjamin_{sheet}"
-                )
-        
-            with c3:
-                dim = st.multiselect(
-                    f"🏷️ {dimensi_label}",
-                    sorted(df["Dimensi"].dropna().unique()),
-                    default=sorted(df["Dimensi"].dropna().unique()),
-                    key=f"dim_penjamin_{sheet}"
-                )
-        
-            df_f = df[
-                df["Periode"].isin(per) &
-                df["KUR/PEN"].isin(kp) &
-                df["Dimensi"].isin(dim)
-            ]
+            df_f = df_f[df_f["Tenor"].isin(selected_tenor)]
         
             if df_f.empty:
-                st.warning("Data kosong setelah filter")
+                st.warning("Data kosong setelah filter Tenor")
                 continue
-        #=============================================================================
-            # ===============================
-            # KHUSUS SHEET PROYEKSI
-            # OS GROSS & OS NET + FILTER TENOR
-            # ===============================
-            if sheet.lower() == "proyeksi":
-            
-                # ===============================
-                # AMBIL KOLOM TENOR (KOLOM KE-4)
-                # ===============================
-                TENOR_COL = df_raw.columns[3]
-                df_f["Tenor"] = df_raw[TENOR_COL]
-            
-                # ===============================
-                # FILTER TENOR (UI)
-                # ===============================
-                tenor_list = sorted(df_f["Tenor"].dropna().unique())
-            
-                selected_tenor = st.multiselect(
-                    "⏳ Pilih Tenor",
-                    tenor_list,
-                    default=tenor_list,
-                    key="tenor_proyeksi"
-                )
-            
-                df_f = df_f[df_f["Tenor"].isin(selected_tenor)]
-            
-                if df_f.empty:
-                    st.warning("Data kosong setelah filter Tenor")
-                    continue
-            
-                col_dim = "Dimensi"
-                col_per = "Periode"
-                col_val = "Value"
-            
-                # ===============================
-                # OS GROSS
-                # ===============================
-                # st.markdown("### 🔹 OS Gross")
-            
-                df_gross = df_f[
-                    df_f[col_dim].str.lower() == "os gross"
-                ].dropna(subset=[col_val])
-            
-                if df_gross.empty:
-                    st.warning("Data OS Gross tidak tersedia")
-                else:
-                    df_gross_agg = (
-                        df_gross
-                        .groupby(col_per, as_index=False)
-                        .agg(Total_Value=(col_val, "sum"))
-                    )
-            
-                    fig_gross = px.bar(
-                        df_gross_agg,
-                        x=col_per,
-                        y="Total_Value",
-                        text="Total_Value",
-                        title="📊 Proyeksi OS Gross"
-                    )
-            
-                    fig_gross.update_traces(
-                        texttemplate="%{text:,.0f}",
-                        textposition="outside"
-                    )
-            
-                    fig_gross.update_layout(
-                        yaxis_title="Nilai (Rp)",
-                        height=450
-                    )
-            
-                    st.plotly_chart(fig_gross, use_container_width=True)
-            
-                # ===============================
-                # OS NETT
-                # ===============================
-                # st.markdown("### 🔹 OS Nett")
-            
-                df_net = df_f[
-                    df_f[col_dim].str.lower() == "os nett"
-                ].dropna(subset=[col_val])
-            
-                if df_net.empty:
-                    st.warning("Data OS Nett tidak tersedia")
-                else:
-                    df_net_agg = (
-                        df_net
-                        .groupby(col_per, as_index=False)
-                        .agg(Total_Value=(col_val, "sum"))
-                    )
-            
-                    fig_net = px.bar(
-                        df_net_agg,
-                        x=col_per,
-                        y="Total_Value",
-                        text="Total_Value",
-                        title="📊 Proyeksi OS Nett"
-                    )
-            
-                    fig_net.update_traces(
-                        texttemplate="%{text:,.0f}",
-                        textposition="outside"
-                    )
-            
-                    fig_net.update_layout(
-                        yaxis_title="Nilai (Rp)",
-                        height=450
-                    )
-            
-                    st.plotly_chart(fig_net, use_container_width=True)
-            
-                continue  # ⬅️ PENTING
+        
+            col_dim = "Dimensi"
+            col_per = "Periode"
+            col_val = "Value"
         
             # ===============================
-            # KHUSUS SHEET TENOR
-            # PLOT VALUE vs TENOR
+            # OS GROSS
             # ===============================
-            if sheet.lower() == "tenor":   
-                # Pastikan tenor numerik & urut
-                df_tenor = df_f.copy()
-                df_tenor["Dimensi"] = pd.to_numeric(df_tenor["Dimensi"], errors="coerce")
-            
-                df_tenor = df_tenor.dropna(subset=["Dimensi", "Value"])
-            
-                # Agregasi per tenor
-                df_tenor_agg = (
-                    df_tenor
-                    .groupby("Dimensi", as_index=False)
-                    .agg(Total_Value=("Value", "sum"))
-                    .sort_values("Dimensi")
+            # st.markdown("### 🔹 OS Gross")
+        
+            df_gross = df_f[
+                df_f[col_dim].str.lower() == "os gross"
+            ].dropna(subset=[col_val])
+        
+            if df_gross.empty:
+                st.warning("Data OS Gross tidak tersedia")
+            else:
+                df_gross_agg = (
+                    df_gross
+                    .groupby(col_per, as_index=False)
+                    .agg(Total_Value=(col_val, "sum"))
                 )
-            
-                fig_tenor = px.bar(
-                    df_tenor_agg,
-                    x="Dimensi",
+        
+                fig_gross = px.bar(
+                    df_gross_agg,
+                    x=col_per,
                     y="Total_Value",
                     text="Total_Value",
-                    labels={
-                        "Dimensi": "Tenor (Tahun)",
-                        "Total_Value": "Nilai"
-                    }
+                    title="📊 Proyeksi OS Gross"
                 )
-            
-                fig_tenor.update_traces(
-                    texttemplate="%{text:,.2f}",
+        
+                fig_gross.update_traces(
+                    texttemplate="%{text:,.0f}",
                     textposition="outside"
                 )
-            
-                fig_tenor.update_layout(
-                    xaxis=dict(
-                        tickmode="linear",
-                        tick0=1,
-                        dtick=1
-                    ),
-                    yaxis_title="Nilai (Rupiah)",
-                    title="📊 Total Nilai per Tenor",
+        
+                fig_gross.update_layout(
+                    yaxis_title="Nilai (Rp)",
                     height=450
                 )
-            
-                st.plotly_chart(fig_tenor, use_container_width=True)
         
-            #-------------------------------------------------------------------------------------------
+                st.plotly_chart(fig_gross, use_container_width=True)
+        
             # ===============================
-            # KHUSUS SHEET JENIS POLIS
-            # PLOT VALUE vs JENIS POLIS
+            # OS NETT
             # ===============================
-            if sheet.lower() == "jenis polis":    
-                df_polis = df_f.copy()
-                # Pastikan data valid
-                df_polis = df_polis.dropna(subset=["Dimensi", "Value"])
-                # Agregasi per Jenis Polis (SPR, NEW, dll)
-                df_polis_agg = (
-                    df_polis
-                    .groupby("Dimensi", as_index=False)
-                    .agg(Total_Value=("Value", "sum"))
-                    .sort_values("Dimensi")
+            # st.markdown("### 🔹 OS Nett")
+        
+            df_net = df_f[
+                df_f[col_dim].str.lower() == "os nett"
+            ].dropna(subset=[col_val])
+        
+            if df_net.empty:
+                st.warning("Data OS Nett tidak tersedia")
+            else:
+                df_net_agg = (
+                    df_net
+                    .groupby(col_per, as_index=False)
+                    .agg(Total_Value=(col_val, "sum"))
                 )
-            
-                fig_polis = px.bar(
-                    df_polis_agg,
-                    x="Dimensi",
+        
+                fig_net = px.bar(
+                    df_net_agg,
+                    x=col_per,
                     y="Total_Value",
                     text="Total_Value",
-                    labels={
-                        "Dimensi": "Jenis Polis",
-                        "Total_Value": "Nilai"
-                    }
+                    title="📊 Proyeksi OS Nett"
                 )
-            
-                fig_polis.update_traces(
-                    texttemplate="%{text:,.2f}",
+        
+                fig_net.update_traces(
+                    texttemplate="%{text:,.0f}",
                     textposition="outside"
                 )
-            
-                fig_polis.update_layout(
-                    xaxis_title="Jenis Polis",
-                    yaxis_title="Nilai (Rupiah)",
-                    title="📊 Total Nilai berdasarkan Jenis Polis",
+        
+                fig_net.update_layout(
+                    yaxis_title="Nilai (Rp)",
                     height=450
                 )
-            
-                st.plotly_chart(fig_polis, use_container_width=True)
         
-            # ===============================
-            # KHUSUS SHEET JENIS KREDIT (KUR)
-            # PLOT VALUE vs JENIS KREDIT
-            # ===============================
-            if "jenis kredit" in sheet.lower():    
-                df_kredit = df_f.copy()
-            
-                # Pastikan data valid
-                df_kredit = df_kredit.dropna(subset=["Dimensi", "Value"])
-            
-                if df_kredit.empty:
-                    st.warning("Data Jenis Kredit kosong setelah filter")
-                else:
-                    # Agregasi per Jenis Kredit
-                    df_kredit_agg = (
-                        df_kredit
-                        .groupby("Dimensi", as_index=False)
-                        .agg(Total_Value=("Value", "sum"))
-                        .sort_values("Dimensi")
-                    )
-            
-                    fig_kredit = px.bar(
-                        df_kredit_agg,
-                        x="Dimensi",
-                        y="Total_Value",
-                        text="Total_Value",
-                        labels={
-                            "Dimensi": "Jenis Kredit (KUR)",
-                            "Total_Value": "Nilai"
-                        }
-                    )
-            
-                    fig_kredit.update_traces(
-                        texttemplate="%{text:,.2f}",
-                        textposition="outside"
-                    )
-            
-                    fig_kredit.update_layout(
-                        xaxis_title="Jenis Kredit (KUR)",
-                        yaxis_title="Nilai (Rupiah)",
-                        title="📊 Total Nilai berdasarkan Jenis Kredit KUR",
-                        height=450
-                    )
-            
-                    st.plotly_chart(fig_kredit, use_container_width=True)
+                st.plotly_chart(fig_net, use_container_width=True)
         
-            # ===============================
-            # KHUSUS SHEET BANK
-            # PLOT VALUE vs BANK
-            # ===============================
-            if "bank" in sheet.lower():    
-                df_bank = df_f.copy()
-            
-                # Pastikan data valid
-                df_bank = df_bank.dropna(subset=["Dimensi", "Value"])
-            
-                if df_bank.empty:
-                    st.warning("Data Jenis Kredit kosong setelah filter")
-                else:
-                    # Agregasi per Jenis Kredit
-                    df_bank_agg = (
-                        df_bank
-                        .groupby("Dimensi", as_index=False)
-                        .agg(Total_Value=("Value", "sum"))
-                        .sort_values("Dimensi")
-                    )
-            
-                    fig_bank = px.bar(
-                        df_bank_agg,
-                        x="Dimensi",
-                        y="Total_Value",
-                        text="Total_Value",
-                        labels={
-                            "Dimensi": "Bank",
-                            "Total_Value": "Nilai"
-                        }
-                    )
-            
-                    fig_bank.update_traces(
-                        texttemplate="%{text:,.2f}",
-                        textposition="outside"
-                    )
-            
-                    fig_bank.update_layout(
-                        xaxis_title="Bank",
-                        yaxis_title="Nilai (Rupiah)",
-                        title="📊 Total Nilai berdasarkan BANK",
-                        height=450
-                    )
-            
-                    st.plotly_chart(fig_bank, use_container_width=True) 
+            continue  # ⬅️ PENTING
+    
+        # ===============================
+        # KHUSUS SHEET TENOR
+        # PLOT VALUE vs TENOR
+        # ===============================
+        if sheet.lower() == "tenor":   
+            # Pastikan tenor numerik & urut
+            df_tenor = df_f.copy()
+            df_tenor["Dimensi"] = pd.to_numeric(df_tenor["Dimensi"], errors="coerce")
         
-            # ===============================
-            # KHUSUS SHEET KOTA
-            # PLOT VALUE vs KOTA
-            # ===============================
-            sheet_norm = sheet.lower().strip()
-            
-            if "kota" in sheet_norm:    
-                df_kota = df_f.copy()
-            
-                # Bersihkan kolom Dimensi (Kota)
-                df_kota["Dimensi"] = df_kota["Dimensi"].astype(str).str.strip()
-            
-                df_kota = df_kota[
-                    (df_kota["Dimensi"] != "") &
-                    (df_kota["Dimensi"].str.lower() != "nan")
-                ]
-            
-                df_kota = df_kota.dropna(subset=["Value"])
-            
-                if df_kota.empty:
-                    st.warning("⚠️ Data Kota kosong setelah filter")
-                else:
-                    # Agregasi per Kota
-                    df_kota_agg = (
-                        df_kota
-                        .groupby("Dimensi", as_index=False)
-                        .agg(Total_Value=("Value", "sum"))
-                        .sort_values("Total_Value", ascending=False)
-                    )
-            
-                    fig_kota = px.bar(
-                        df_kota_agg,
-                        x="Dimensi",
-                        y="Total_Value",
-                        text="Total_Value",
-                        labels={
-                            "Dimensi": "Kota",
-                            "Total_Value": "Nilai"
-                        }
-                    )
-            
-                    fig_kota.update_traces(
-                        texttemplate="%{text:,.2f}",
-                        textposition="outside"
-                    )
-            
-                    fig_kota.update_layout(
-                        xaxis_title="Kota",
-                        yaxis_title="Nilai (Rupiah)",
-                        title="📊 Total Nilai berdasarkan Kota",
-                        height=500
-                    )
-            
-                    st.plotly_chart(fig_kota, use_container_width=True)
+            df_tenor = df_tenor.dropna(subset=["Dimensi", "Value"])
         
-            
-        
-            # ===============================
-            # AGREGASI METRICS
-            # ===============================
-            df_agg = (
-                df_f.groupby("Metrics", as_index=False)
+            # Agregasi per tenor
+            df_tenor_agg = (
+                df_tenor
+                .groupby("Dimensi", as_index=False)
                 .agg(Total_Value=("Value", "sum"))
+                .sort_values("Dimensi")
             )
         
-            df_agg["Total_T"] = df_agg["Total_Value"] / 1_000_000_000_000
-        
-            # ===============================
-            # GRAFIK BATANG (TRILIUN)
-            # ===============================
-            fig = px.bar(
-                df_agg,
-                x="Metrics",
-                y="Total_T",
-                text="Total_T",
-                title=f"📊 Summary Metrics berdasarkan {dimensi_label}"
+            fig_tenor = px.bar(
+                df_tenor_agg,
+                x="Dimensi",
+                y="Total_Value",
+                text="Total_Value",
+                labels={
+                    "Dimensi": "Tenor (Tahun)",
+                    "Total_Value": "Nilai"
+                }
             )
         
-            fig.update_traces(
-                texttemplate="%{text:,.2f} T",
+            fig_tenor.update_traces(
+                texttemplate="%{text:,.2f}",
                 textposition="outside"
             )
         
-            fig.update_layout(
-                yaxis_title="Nilai Finansial (Triliun)",
-                xaxis_title="Metrics"
+            fig_tenor.update_layout(
+                xaxis=dict(
+                    tickmode="linear",
+                    tick0=1,
+                    dtick=1
+                ),
+                yaxis_title="Nilai (Rupiah)",
+                title="📊 Total Nilai per Tenor",
+                height=450
             )
         
-            st.plotly_chart(fig, use_container_width=True)
-        
-            # ===============================
-            # GRAFIK DUAL AXIS (FOKUS DEBITUR)
-            # ===============================
-            df_agg["Jenis"] = df_agg["Metrics"].apply(
-                lambda x: "Debitur" if "debitur" in str(x).lower() else "Finansial"
+            st.plotly_chart(fig_tenor, use_container_width=True)
+    
+        #-------------------------------------------------------------------------------------------
+        # ===============================
+        # KHUSUS SHEET JENIS POLIS
+        # PLOT VALUE vs JENIS POLIS
+        # ===============================
+        if sheet.lower() == "jenis polis":    
+            df_polis = df_f.copy()
+            # Pastikan data valid
+            df_polis = df_polis.dropna(subset=["Dimensi", "Value"])
+            # Agregasi per Jenis Polis (SPR, NEW, dll)
+            df_polis_agg = (
+                df_polis
+                .groupby("Dimensi", as_index=False)
+                .agg(Total_Value=("Value", "sum"))
+                .sort_values("Dimensi")
             )
         
-            df_agg["Value_T"] = df_agg.apply(
-                lambda r: r["Total_T"] if r["Jenis"] == "Finansial" else None,
-                axis=1
+            fig_polis = px.bar(
+                df_polis_agg,
+                x="Dimensi",
+                y="Total_Value",
+                text="Total_Value",
+                labels={
+                    "Dimensi": "Jenis Polis",
+                    "Total_Value": "Nilai"
+                }
             )
         
-            df_agg["Value_Debitur"] = df_agg.apply(
-                lambda r: r["Total_Value"] if r["Jenis"] == "Debitur" else None,
-                axis=1
+            fig_polis.update_traces(
+                texttemplate="%{text:,.2f}",
+                textposition="outside"
             )
         
-            fig2 = go.Figure()
-        
-            fig2.add_bar(
-                x=df_agg["Metrics"],
-                y=df_agg["Value_T"],
-                name="Nilai Finansial (Triliun)",
-                yaxis="y"
+            fig_polis.update_layout(
+                xaxis_title="Jenis Polis",
+                yaxis_title="Nilai (Rupiah)",
+                title="📊 Total Nilai berdasarkan Jenis Polis",
+                height=450
             )
         
-            fig2.add_bar(
-                x=df_agg["Metrics"],
-                y=df_agg["Value_Debitur"],
-                name="Jumlah Debitur",
-                yaxis="y2"
-            )
+            st.plotly_chart(fig_polis, use_container_width=True)
+    
+        # ===============================
+        # KHUSUS SHEET JENIS KREDIT (KUR)
+        # PLOT VALUE vs JENIS KREDIT
+        # ===============================
+        if "jenis kredit" in sheet.lower():    
+            df_kredit = df_f.copy()
         
-            fig2.update_layout(
-                title=f"📊 Metrics vs Jumlah Debitur berdasarkan {dimensi_label}",
-                barmode="group",
-                yaxis=dict(title="Triliun Rupiah"),
-                yaxis2=dict(
-                    title="Jumlah Debitur",
-                    overlaying="y",
-                    side="right"
+            # Pastikan data valid
+            df_kredit = df_kredit.dropna(subset=["Dimensi", "Value"])
+        
+            if df_kredit.empty:
+                st.warning("Data Jenis Kredit kosong setelah filter")
+            else:
+                # Agregasi per Jenis Kredit
+                df_kredit_agg = (
+                    df_kredit
+                    .groupby("Dimensi", as_index=False)
+                    .agg(Total_Value=("Value", "sum"))
+                    .sort_values("Dimensi")
                 )
-            )
         
-            st.plotly_chart(fig2, use_container_width=True)
-                # 🔽 SELURUH LOGIKA PENJAMIN
-                # 🔽 TENOR, PROYEKSI, BANK, KOTA, METRICS
-                # 🔽 TIDAK DIUBAH SAMA SEKALI
+                fig_kredit = px.bar(
+                    df_kredit_agg,
+                    x="Dimensi",
+                    y="Total_Value",
+                    text="Total_Value",
+                    labels={
+                        "Dimensi": "Jenis Kredit (KUR)",
+                        "Total_Value": "Nilai"
+                    }
+                )
+        
+                fig_kredit.update_traces(
+                    texttemplate="%{text:,.2f}",
+                    textposition="outside"
+                )
+        
+                fig_kredit.update_layout(
+                    xaxis_title="Jenis Kredit (KUR)",
+                    yaxis_title="Nilai (Rupiah)",
+                    title="📊 Total Nilai berdasarkan Jenis Kredit KUR",
+                    height=450
+                )
+        
+                st.plotly_chart(fig_kredit, use_container_width=True)
+    
+        # ===============================
+        # KHUSUS SHEET BANK
+        # PLOT VALUE vs BANK
+        # ===============================
+        if "bank" in sheet.lower():    
+            df_bank = df_f.copy()
+        
+            # Pastikan data valid
+            df_bank = df_bank.dropna(subset=["Dimensi", "Value"])
+        
+            if df_bank.empty:
+                st.warning("Data Jenis Kredit kosong setelah filter")
+            else:
+                # Agregasi per Jenis Kredit
+                df_bank_agg = (
+                    df_bank
+                    .groupby("Dimensi", as_index=False)
+                    .agg(Total_Value=("Value", "sum"))
+                    .sort_values("Dimensi")
+                )
+        
+                fig_bank = px.bar(
+                    df_bank_agg,
+                    x="Dimensi",
+                    y="Total_Value",
+                    text="Total_Value",
+                    labels={
+                        "Dimensi": "Bank",
+                        "Total_Value": "Nilai"
+                    }
+                )
+        
+                fig_bank.update_traces(
+                    texttemplate="%{text:,.2f}",
+                    textposition="outside"
+                )
+        
+                fig_bank.update_layout(
+                    xaxis_title="Bank",
+                    yaxis_title="Nilai (Rupiah)",
+                    title="📊 Total Nilai berdasarkan BANK",
+                    height=450
+                )
+        
+                st.plotly_chart(fig_bank, use_container_width=True) 
+    
+        # ===============================
+        # KHUSUS SHEET KOTA
+        # PLOT VALUE vs KOTA
+        # ===============================
+        sheet_norm = sheet.lower().strip()
+        
+        if "kota" in sheet_norm:    
+            df_kota = df_f.copy()
+        
+            # Bersihkan kolom Dimensi (Kota)
+            df_kota["Dimensi"] = df_kota["Dimensi"].astype(str).str.strip()
+        
+            df_kota = df_kota[
+                (df_kota["Dimensi"] != "") &
+                (df_kota["Dimensi"].str.lower() != "nan")
+            ]
+        
+            df_kota = df_kota.dropna(subset=["Value"])
+        
+            if df_kota.empty:
+                st.warning("⚠️ Data Kota kosong setelah filter")
+            else:
+                # Agregasi per Kota
+                df_kota_agg = (
+                    df_kota
+                    .groupby("Dimensi", as_index=False)
+                    .agg(Total_Value=("Value", "sum"))
+                    .sort_values("Total_Value", ascending=False)
+                )
+        
+                fig_kota = px.bar(
+                    df_kota_agg,
+                    x="Dimensi",
+                    y="Total_Value",
+                    text="Total_Value",
+                    labels={
+                        "Dimensi": "Kota",
+                        "Total_Value": "Nilai"
+                    }
+                )
+        
+                fig_kota.update_traces(
+                    texttemplate="%{text:,.2f}",
+                    textposition="outside"
+                )
+        
+                fig_kota.update_layout(
+                    xaxis_title="Kota",
+                    yaxis_title="Nilai (Rupiah)",
+                    title="📊 Total Nilai berdasarkan Kota",
+                    height=500
+                )
+        
+                st.plotly_chart(fig_kota, use_container_width=True)
+    
+        
+    
+        # ===============================
+        # AGREGASI METRICS
+        # ===============================
+        df_agg = (
+            df_f.groupby("Metrics", as_index=False)
+            .agg(Total_Value=("Value", "sum"))
+        )
+    
+        df_agg["Total_T"] = df_agg["Total_Value"] / 1_000_000_000_000
+    
+        # ===============================
+        # GRAFIK BATANG (TRILIUN)
+        # ===============================
+        fig = px.bar(
+            df_agg,
+            x="Metrics",
+            y="Total_T",
+            text="Total_T",
+            title=f"📊 Summary Metrics berdasarkan {dimensi_label}"
+        )
+    
+        fig.update_traces(
+            texttemplate="%{text:,.2f} T",
+            textposition="outside"
+        )
+    
+        fig.update_layout(
+            yaxis_title="Nilai Finansial (Triliun)",
+            xaxis_title="Metrics"
+        )
+    
+        st.plotly_chart(fig, use_container_width=True)
+    
+        # ===============================
+        # GRAFIK DUAL AXIS (FOKUS DEBITUR)
+        # ===============================
+        df_agg["Jenis"] = df_agg["Metrics"].apply(
+            lambda x: "Debitur" if "debitur" in str(x).lower() else "Finansial"
+        )
+    
+        df_agg["Value_T"] = df_agg.apply(
+            lambda r: r["Total_T"] if r["Jenis"] == "Finansial" else None,
+            axis=1
+        )
+    
+        df_agg["Value_Debitur"] = df_agg.apply(
+            lambda r: r["Total_Value"] if r["Jenis"] == "Debitur" else None,
+            axis=1
+        )
+    
+        fig2 = go.Figure()
+    
+        fig2.add_bar(
+            x=df_agg["Metrics"],
+            y=df_agg["Value_T"],
+            name="Nilai Finansial (Triliun)",
+            yaxis="y"
+        )
+    
+        fig2.add_bar(
+            x=df_agg["Metrics"],
+            y=df_agg["Value_Debitur"],
+            name="Jumlah Debitur",
+            yaxis="y2"
+        )
+    
+        fig2.update_layout(
+            title=f"📊 Metrics vs Jumlah Debitur berdasarkan {dimensi_label}",
+            barmode="group",
+            yaxis=dict(title="Triliun Rupiah"),
+            yaxis2=dict(
+                title="Jumlah Debitur",
+                overlaying="y",
+                side="right"
+            )
+        )
+    
+        st.plotly_chart(fig2, use_container_width=True)
+    
+    
+    #==========================================================================================================================
+    # ===============================
+    # FOOTER
+    # ===============================
+    st.markdown("---")
+    
+    st.markdown(
+        """
+        <div style="text-align:center; color:gray; font-size:13px;">
+            © 2026 | Dashboard Gearing Ratio KUR & PEN<br>
+            Developed with ❤️ using <b>Streamlit</b> & <b>Plotly</b>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
+menu = st.radio("Pilih Perhitungan", [...])
+
+if menu == "...":
+    bagian_1_proyeksi()
 else:
-    st.info("⬆️ Silakan upload file Outstanding Penjamin untuk menampilkan dashboard")
-
-# ===============================
-# FOOTER
-# ===============================
-st.markdown("---")
-st.markdown(
-    """
-    <div style="text-align:center; color:gray; font-size:13px;">
-        © 2026 | Dashboard Gearing Ratio KUR & PEN<br>
-        Developed with ❤️ using <b>Streamlit</b> & <b>Plotly</b>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    bagian_2_penjaminan()
