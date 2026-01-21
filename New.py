@@ -597,17 +597,6 @@ if uploaded_file_penjamin is not None:
         if df_raw.empty:
             st.warning("Sheet kosong")
             continue
-
-        # ===============================
-        # GET SHEET NAMES
-        # ===============================
-        if uploaded_file_penjamin.name.endswith(".xlsx"):
-            sheet_names = pd.ExcelFile(uploaded_file_penjamin).sheet_names
-        else:
-            sheet_names = ["CSV"]
-        
-        # Skip sheet Proyeksi
-        #sheet_names = [s for s in sheet_names if s.lower() != "proyeksi"]
         
         # ===============================
         # LOAD DATA
