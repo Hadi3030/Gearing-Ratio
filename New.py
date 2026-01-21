@@ -713,7 +713,7 @@ if uploaded_file_penjamin is not None:
                     "📅 Periode",
                     sorted(df["Periode"].dropna().unique()),
                     default=sorted(df["Periode"].dropna().unique()),
-                    key=f"per_{sheet}"
+                    key=f"per_penjamin_{sheet}"
                 )
         
             with c2:
@@ -721,7 +721,7 @@ if uploaded_file_penjamin is not None:
                     "🏦 KUR / PEN",
                     sorted(df["KUR/PEN"].dropna().unique()),
                     default=sorted(df["KUR/PEN"].dropna().unique()),
-                    key=f"kp_{sheet}"
+                    key=f"kp_penjamin_{sheet}"
                 )
         
             with c3:
@@ -729,7 +729,7 @@ if uploaded_file_penjamin is not None:
                     f"🏷️ {dimensi_label}",
                     sorted(df["Dimensi"].dropna().unique()),
                     default=sorted(df["Dimensi"].dropna().unique()),
-                    key=f"dim_{sheet}"
+                    key=f"dim_penjamin_{sheet}"
                 )
         
             df_f = df[
