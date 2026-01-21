@@ -1213,18 +1213,39 @@ def bagian_2_penjaminan():
         unsafe_allow_html=True
     )
 
-menu = st.radio(
-    "📌 Pilih Perhitungan",
+st.set_page_config(
+    page_title="Dashboard Gearing Ratio & Penjaminan",
+    layout="wide"
+)
+
+st.sidebar.title("📌 Menu Utama")
+
+menu = st.sidebar.radio(
+    "Pilih Analisis",
     [
-        "Bagian 1 – Proyeksi & Gearing Ratio",
-        "Bagian 2 – Outstanding Penjaminan"
+        "📊 Proyeksi & Gearing Ratio",
+        "📈 Outstanding Penjaminan"
     ]
 )
 
-st.divider()
-
-if menu == "Bagian 1 – Proyeksi & Gearing Ratio":
+if menu == "📊 Proyeksi & Gearing Ratio":
     bagian_1_proyeksi()
 
-elif menu == "Bagian 2 – Outstanding Penjaminan":
+elif menu == "📈 Outstanding Penjaminan":
     bagian_2_penjaminan()
+
+# menu = st.radio(
+#     "📌 Pilih Perhitungan",
+#     [
+#         "Bagian 1 – Proyeksi & Gearing Ratio",
+#         "Bagian 2 – Outstanding Penjaminan"
+#     ]
+# )
+
+# st.divider()
+
+# if menu == "Bagian 1 – Proyeksi & Gearing Ratio":
+#     bagian_1_proyeksi()
+
+# elif menu == "Bagian 2 – Outstanding Penjaminan":
+#     bagian_2_penjaminan()
