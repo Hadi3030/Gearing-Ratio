@@ -627,7 +627,7 @@ def bagian_2_penjaminan():
             unsafe_allow_html=True
         )
     
-    st.info("Website ini akan otomatis menampilkan dashboard untuk perhitungan Trend Gearing Ratio setelah anda mengupload file dengan format xlxs atau csv, dan pastikan format tabel yang akan diinput sesuai dengan contoh")
+    st.info("Website ini akan otomatis menampilkan dashboard untuk perhitungan Outstending Penjamin setelah anda mengupload file dengan format xlxs atau csv, dan pastikan format tabel yang akan diinput sesuai dengan contoh")
     
     
     st.title("📊 Dashboard Summary Outstanding Penjamin")
