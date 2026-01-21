@@ -1223,15 +1223,15 @@ st.sidebar.title("📌 Menu Utama")
 menu = st.sidebar.radio(
     "Pilih Analisis",
     [
-        "📊 Proyeksi & Gearing Ratio",
-        "📈 Outstanding Penjaminan"
+        "📈 Gearing Ratio",
+        "📊 Outstanding Penjaminan"
     ]
 )
 
-if menu == "📊 Proyeksi & Gearing Ratio":
+if menu == "📈 Gearing Ratio":
     bagian_1_proyeksi()
 
-elif menu == "📈 Outstanding Penjaminan":
+elif menu == "📊 Outstanding Penjaminan":
     bagian_2_penjaminan()
 
 # menu = st.radio(
