@@ -629,7 +629,7 @@ def bagian_2_penjaminan():
     
     st.info("Website ini akan otomatis menampilkan dashboard untuk perhitungan Outstending Penjamin setelah anda mengupload file dengan format xlxs atau csv, dan pastikan format tabel yang akan diinput sesuai dengan contoh")
     st.image(
-        "gambar/xlxsPic2.png",
+        "gambar/xlsxPic2.png",
         caption="Contoh format file Excel (.xlsx) yang didukung",
         use_container_width=True
     )
