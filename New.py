@@ -593,10 +593,6 @@ def bagian_2_penjaminan():
     import plotly.express as px
     import plotly.graph_objects as go
     
-    st.set_page_config(
-    page_title="Dashboard Gearing Ratio KUR & PEN",
-    layout="wide")
-    
     st.title("📊 Dashboard Summary Outstanding Penjamin")
     
     # ===============================
