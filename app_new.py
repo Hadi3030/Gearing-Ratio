@@ -38,6 +38,17 @@ st.image(
     caption="Contoh format file Excel (.xlsx) yang didukung",
     use_container_width=True
 )
+#===================
+# ===============================
+# PILIH MODE DI PALING ATAS
+# ===============================
+mode = st.radio(
+    "📌 Pilih Perhitungan",
+    ["Bagian 1 - Proyeksi", "Bagian 2 - Penjaminan"]
+)
+
+st.divider()
+#=====================================
 st.title("📊 Summary Tend Gearing Ratio")
 
 # ===============================
